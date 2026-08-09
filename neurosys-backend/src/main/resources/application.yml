@@ -4,7 +4,7 @@ spring:
   profiles:
     active: dev
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://${MYSQLHOST:${MYSQL_HOST:localhost}}:${MYSQLPORT:${MYSQL_PORT:3306}}/${MYSQLDATABASE:${MYSQL_DATABASE:railway}}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    url: ${SPRING_DATASOURCE_URL:${MYSQL_URL:jdbc:mysql://${MYSQLHOST:${MYSQL_HOST:localhost}}:${MYSQLPORT:${MYSQL_PORT:3306}}/${MYSQLDATABASE:${MYSQL_DATABASE:railway}}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}}
     username: ${SPRING_DATASOURCE_USERNAME:${MYSQLUSER:${MYSQL_USER:root}}}
     password: ${SPRING_DATASOURCE_PASSWORD:${MYSQLPASSWORD:${MYSQL_PASSWORD:Karthik@2005}}}
     driver-class-name: ${SPRING_DATASOURCE_DRIVER:com.mysql.cj.jdbc.Driver}
