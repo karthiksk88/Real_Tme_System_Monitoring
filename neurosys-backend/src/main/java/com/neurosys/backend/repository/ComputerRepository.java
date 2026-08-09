@@ -1,0 +1,24 @@
+package com.neurosys.backend.repository;
+
+import com.neurosys.backend.entity.Computer;
+import com.neurosys.backend.enums.ComputerStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface ComputerRepository extends JpaRepository<Computer, String> {
+    Optional<Computer> findByAgentId(String agentId);
+    Optional<Computer> findByMacAddress(String macAddress);
+    Optional<Computer> findByHostnameIgnoreCase(String hostname);
+    List<Computer> findByStatus(ComputerStatus status);
+    List<Computer> findByLabName(String labName);
+    long countByStatus(ComputerStatus status);
+
+    @Query("SELECT c FROM Computer c WHERE c.status = 'ONLINE' AND c.lastSeenAt < :threshold")
+    List<Computer> findStaleOnlineComputers(Instant threshold);
+}

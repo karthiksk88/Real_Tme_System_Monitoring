@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.neurosys</groupId>
+  <artifactId>neurosys-agent</artifactId>
+  <name>neurosys-agent</name>
+  <version>1.0.0-SNAPSHOT</version>
+  <description>NeuroSys Lightweight OSHI System Monitoring Agent Daemon</description>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.2</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer>
+                  <mainClass>com.neurosys.agent.AgentApplication</mainClass>
+                </transformer>
+              </transformers>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>exec</shadedClassifierName>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+  <properties>
+    <java.version>17</java.version>
+    <maven.compiler.source>17</maven.compiler.source>
+    <jackson.version>2.16.1</jackson.version>
+    <maven.compiler.target>17</maven.compiler.target>
+    <slf4j.version>2.0.12</slf4j.version>
+    <oshi.version>6.4.11</oshi.version>
+    <logback.version>1.4.14</logback.version>
+  </properties>
+</project>

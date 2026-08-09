@@ -1,0 +1,337 @@
+Step 1: Create a New Project
+
+Project Name:
+
+Real-Time System Monitoring with AI Prediction
+Step 2: Project Description
+
+Paste this as your project description:
+
+NeuroSys is an enterprise-grade AI-powered predictive system monitoring platform designed for schools, colleges, offices, and organizations.
+
+The platform consists of a lightweight Java Monitoring Agent installed on every computer and a centralized Spring Boot backend with a React dashboard.
+
+The Monitoring Agent continuously collects system metrics including CPU usage, memory usage, disk usage, network statistics, running processes, operating system information, uptime, and temperature (when available). Every few seconds it securely sends these metrics to the backend.
+
+The backend stores historical metrics, generates alerts, calculates health scores, predicts future resource usage using machine learning, and provides optimization recommendations.
+
+Administrators can monitor all computers from a single dashboard, receive real-time updates using WebSockets, analyze logs, and use an AI assistant to understand system issues.
+
+The project should follow enterprise software architecture with clean code, modular design, security best practices, scalability, and production-ready standards.
+Step 3: Technology Stack
+
+Tell Antigravity to always use:
+
+Frontend
+React 18
+
+Tailwind CSS
+
+React Router
+
+Axios
+
+Recharts
+
+WebSocket
+Backend
+Java 21
+
+Spring Boot 3
+
+Spring Security
+
+Spring Data JPA
+
+Spring Web
+
+Spring WebSocket
+
+Maven
+Database
+MySQL
+Monitoring Agent
+Java
+
+OSHI
+AI
+Python
+
+Pandas
+
+NumPy
+
+Scikit-Learn
+Step 4: Coding Standards
+
+Paste:
+
+Always follow enterprise software development practices.
+
+Use Clean Architecture.
+
+Follow SOLID principles.
+
+Use dependency injection.
+
+Use DTOs instead of exposing entities.
+
+Implement global exception handling.
+
+Implement validation.
+
+Use REST API best practices.
+
+Generate Swagger documentation.
+
+Use meaningful class names.
+
+Write reusable code.
+
+Write modular services.
+
+Follow layered architecture.
+
+Use constructor injection.
+
+Write scalable code.
+
+Avoid duplicate code.
+
+Use proper logging.
+
+Generate production-ready code.
+Step 5: UI Requirements
+Design a modern dashboard.
+
+Theme:
+
+Dark Mode
+
+Professional
+
+Responsive
+
+Rounded cards
+
+Modern charts
+
+Sidebar navigation
+
+Top navigation
+
+Professional icons
+
+Smooth animations
+
+Enterprise dashboard style similar to Grafana and Datadog.
+Step 6: Folder Structure Rule
+Always maintain clean folder structure.
+
+Frontend
+
+components
+
+pages
+
+hooks
+
+services
+
+contexts
+
+utils
+
+assets
+
+Backend
+
+controller
+
+service
+
+repository
+
+entity
+
+dto
+
+mapper
+
+config
+
+security
+
+scheduler
+
+exception
+
+util
+
+Monitoring Agent
+
+collector
+
+scheduler
+
+sender
+
+config
+
+utils
+
+AI
+
+models
+
+training
+
+prediction
+
+api
+Step 7: Development Rules
+
+Paste:
+
+Never generate the entire project at once.
+
+Always generate one module at a time.
+
+Every module must compile successfully before moving to the next module.
+
+Every generated module should include:
+
+Folder structure
+
+Dependencies
+
+Configuration
+
+Source code
+
+Documentation
+
+API examples
+
+Testing instructions
+Step 8: API Rules
+Always create REST APIs.
+
+Use JSON.
+
+Return standard responses.
+
+Use ResponseEntity.
+
+Proper HTTP status codes.
+
+Centralized exception handling.
+
+Swagger documentation.
+Step 9: Database Rules
+Always normalize database tables.
+
+Use UUID as primary keys.
+
+Include:
+
+created_at
+
+updated_at
+
+created_by
+
+updated_by
+
+status
+
+Indexes
+
+Foreign keys
+Step 10: AI Rules
+Machine learning models should never run inside Spring Boot.
+
+Python handles:
+
+Prediction
+
+Training
+
+Anomaly Detection
+
+Spring Boot communicates with Python using REST APIs.
+Step 11: Security Rules
+JWT Authentication
+
+Role Based Access
+
+BCrypt Password
+
+HTTPS Ready
+
+Input Validation
+
+SQL Injection Protection
+
+XSS Protection
+
+CORS Configuration
+Step 12: Monitoring Agent Rules
+The Monitoring Agent should:
+
+Run automatically when Windows starts.
+
+Collect metrics every 5 seconds.
+
+Retry if the server is offline.
+
+Cache unsent data locally.
+
+Reconnect automatically.
+
+Consume minimal CPU and RAM.
+
+Run silently in the background.
+Step 13: Final Master Instruction
+
+This is the most important instruction. Paste it before starting development:
+
+You are acting as a Senior Software Architect with 15+ years of enterprise software development experience.
+
+Design and implement NeuroSys as a production-ready enterprise application.
+
+The code must be modular, scalable, secure, maintainable, and follow Clean Architecture.
+
+Do not generate placeholder code.
+
+Generate production-ready implementations.
+
+Never skip validation, security, or documentation.
+
+Only build one module at a time and wait for approval before proceeding.
+
+Recommended Development Order
+
+Once the setup is complete, start building in this order:
+
+✅ Project structure & dependencies
+✅ Database schema
+✅ Authentication (JWT)
+✅ Monitoring Agent (Java + OSHI)
+✅ Agent registration
+✅ Metrics API
+✅ React dashboard
+✅ Computer details page
+✅ WebSocket integration
+✅ Alert engine
+✅ Health score
+✅ AI prediction service
+✅ Crash prediction
+✅ Process monitoring
+✅ File analyzer
+✅ Log analyzer
+✅ Lab analytics
+✅ AI assistant
+✅ Testing & deployment
+
+This workflow is how a real software team would build the application and will help Antigravity generate higher-quality code than trying to produce everything in one go.

@@ -1,0 +1,127 @@
+package com.neurosys.backend.service;
+
+import com.neurosys.backend.dto.response.ComputerDto;
+import com.neurosys.backend.entity.Computer;
+import com.neurosys.backend.entity.HealthScore;
+import com.neurosys.backend.entity.SystemMetric;
+import com.neurosys.backend.enums.ComputerStatus;
+import com.neurosys.backend.exception.ResourceNotFoundException;
+import com.neurosys.backend.repository.ComputerRepository;
+import com.neurosys.backend.repository.HealthScoreRepository;
+import com.neurosys.backend.repository.SystemMetricRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class ComputerServiceImpl implements ComputerService {
+
+    private final ComputerRepository computerRepository;
+    private final SystemMetricRepository systemMetricRepository;
+    private final HealthScoreRepository healthScoreRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ComputerDto> getAllComputers() {
+        return computerRepository.findAll().stream()
+                .filter(c -> c.getStatus() != ComputerStatus.PENDING && c.getStatus() != ComputerStatus.REJECTED)
+                .map(this::mapToDto).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ComputerDto> getPendingComputers() {
+        return computerRepository.findByStatus(ComputerStatus.PENDING).stream().map(this::mapToDto).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ComputerDto getComputerById(String id) {
+        Computer computer = computerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Computer", "id", id));
+        return mapToDto(computer);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ComputerDto getComputerByAgentId(String agentId) {
+        Computer computer = computerRepository.findByAgentId(agentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Computer Agent", "agentId", agentId));
+        return mapToDto(computer);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ComputerDto> getComputersByLab(String labName) {
+        return computerRepository.findByLabName(labName).stream().map(this::mapToDto).toList();
+    }
+
+    @Override
+    @Transactional
+    public ComputerDto approveComputer(String computerId) {
+        Computer computer = computerRepository.findById(computerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Computer", "id", computerId));
+        computer.setStatus(ComputerStatus.ONLINE);
+        computer.setLastSeenAt(Instant.now());
+        computer = computerRepository.save(computer);
+        return mapToDto(computer);
+    }
+
+    @Override
+    @Transactional
+    public ComputerDto rejectComputer(String computerId) {
+        Computer computer = computerRepository.findById(computerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Computer", "id", computerId));
+        computer.setStatus(ComputerStatus.REJECTED);
+        computer = computerRepository.save(computer);
+        return mapToDto(computer);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getAgentStatus(String agentId) {
+        return computerRepository.findByAgentId(agentId)
+                .map(c -> c.getStatus().name())
+                .orElse("NOT_REGISTERED");
+    }
+
+    private ComputerDto mapToDto(Computer computer) {
+        SystemMetric metric = systemMetricRepository.findLatestByComputerId(computer.getId()).orElse(null);
+        HealthScore healthScore = healthScoreRepository.findLatestByComputerId(computer.getId()).orElse(null);
+
+        Double rx = metric != null && metric.getNetworkRxBytesSec() != null ? metric.getNetworkRxBytesSec() : 0.0;
+        Double tx = metric != null && metric.getNetworkTxBytesSec() != null ? metric.getNetworkTxBytesSec() : 0.0;
+        double totalBytesSec = rx + tx;
+        double speedMbps = Math.round((totalBytesSec * 8.0 / 1_000_000.0) * 100.0) / 100.0;
+
+        return ComputerDto.builder()
+                .id(computer.getId())
+                .agentId(computer.getAgentId())
+                .hostname(computer.getHostname())
+                .computerName(computer.getComputerName())
+                .ipAddress(computer.getIpAddress())
+                .macAddress(computer.getMacAddress())
+                .osName(computer.getOsName())
+                .osVersion(computer.getOsVersion())
+                .labName(computer.getLabName())
+                .cpuModel(computer.getCpuModel())
+                .totalRamMb(computer.getTotalRamMb())
+                .agentVersion(computer.getAgentVersion())
+                .status(computer.getStatus().name())
+                .internetConnected(computer.getInternetConnected() != null ? computer.getInternetConnected() : true)
+                .uptimeSeconds(computer.getUptimeSeconds() != null ? computer.getUptimeSeconds() : 0L)
+                .lastSeenAt(computer.getLastSeenAt())
+                .currentCpuUsage(metric != null ? metric.getCpuUsagePercent() : 0.0)
+                .currentRamUsage(metric != null ? metric.getMemoryUsagePercent() : 0.0)
+                .currentDiskUsage(metric != null ? metric.getDiskUsagePercent() : 0.0)
+                .currentHealthScore(healthScore != null ? healthScore.getOverallScore() : 100.0)
+                .currentNetworkRxBytesSec(rx)
+                .currentNetworkTxBytesSec(tx)
+                .currentNetworkSpeedMbps(speedMbps)
+                .build();
+    }
+}

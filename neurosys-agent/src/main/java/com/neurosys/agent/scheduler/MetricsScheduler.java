@@ -1,0 +1,127 @@
+package com.neurosys.agent.scheduler;
+
+import com.neurosys.agent.collector.*;
+import com.neurosys.agent.config.AgentConfig;
+import com.neurosys.agent.sender.MetricsSender;
+import oshi.SystemInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+public class MetricsScheduler {
+
+    private static final Logger log = LoggerFactory.getLogger(MetricsScheduler.class);
+
+    private final SystemInfo systemInfo;
+    private final CpuCollector cpuCollector;
+    private final MemoryCollector memoryCollector;
+    private final DiskCollector diskCollector;
+    private final NetworkCollector networkCollector;
+    private final ProcessCollector processCollector;
+    private final SystemInfoCollector systemInfoCollector;
+    private final InternetCollector internetCollector;
+    private final SoftwareCollector softwareCollector;
+    private final MetricsSender metricsSender;
+    private final ScheduledExecutorService scheduler;
+    private boolean isRegistered = false;
+    private int cycleCounter = 0;
+
+    public MetricsScheduler() {
+        this.systemInfo = new SystemInfo();
+        this.cpuCollector = new CpuCollector(systemInfo);
+        this.memoryCollector = new MemoryCollector(systemInfo);
+        this.diskCollector = new DiskCollector(systemInfo);
+        this.networkCollector = new NetworkCollector(systemInfo);
+        this.processCollector = new ProcessCollector(systemInfo);
+        this.systemInfoCollector = new SystemInfoCollector(systemInfo);
+        this.internetCollector = new InternetCollector();
+        this.softwareCollector = new SoftwareCollector();
+        this.metricsSender = new MetricsSender();
+        this.scheduler = Executors.newSingleThreadScheduledExecutor();
+    }
+
+    public void start() {
+        log.info("Starting NeuroSys Monitoring Agent periodic sampling scheduler (Interval: {}s)...", AgentConfig.getIntervalSeconds());
+
+        // Perform initial registration
+        attemptRegistration();
+
+        // Schedule periodic 5-second sampling
+        scheduler.scheduleAtFixedRate(this::collectAndSendMetrics, 0, AgentConfig.getIntervalSeconds(), TimeUnit.SECONDS);
+    }
+
+    private void attemptRegistration() {
+        boolean internetOk = internetCollector.isInternetReachable();
+        Map<String, Object> regPayload = new HashMap<>();
+        regPayload.put("agentId", AgentConfig.getAgentId());
+        regPayload.put("hostname", systemInfoCollector.getHostname());
+        regPayload.put("computerName", systemInfoCollector.getHostname());
+        regPayload.put("ipAddress", networkCollector.getIpAddress());
+        regPayload.put("macAddress", networkCollector.getMacAddress());
+        regPayload.put("osName", systemInfoCollector.getOsName());
+        regPayload.put("osVersion", systemInfoCollector.getOsVersion());
+        regPayload.put("labName", AgentConfig.getLabName());
+        regPayload.put("cpuModel", cpuCollector.getCpuName());
+        regPayload.put("totalRamMb", memoryCollector.getTotalRamMb());
+        regPayload.put("agentVersion", "1.0.0");
+        regPayload.put("internetConnected", internetOk);
+
+        this.isRegistered = metricsSender.registerWithServer(regPayload);
+    }
+
+    private void collectAndSendMetrics() {
+        try {
+            if (!isRegistered) {
+                attemptRegistration();
+                return;
+            }
+
+            // Check onboarding approval status from central server
+            String status = metricsSender.checkApprovalStatus(AgentConfig.getAgentId());
+            if ("PENDING".equalsIgnoreCase(status)) {
+                log.info("Device onboarding status is PENDING approval by Administrator. Pausing telemetry stream...");
+                return;
+            } else if ("REJECTED".equalsIgnoreCase(status)) {
+                log.warn("Device onboarding was REJECTED by Administrator. Telemetry transmission halted.");
+                return;
+            }
+
+            cycleCounter++;
+            boolean internetOk = internetCollector.isInternetReachable();
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("agentId", AgentConfig.getAgentId());
+            payload.put("cpuUsagePercent", cpuCollector.getCpuUsagePercent());
+            payload.put("memoryUsagePercent", memoryCollector.getMemoryUsagePercent());
+            payload.put("memoryUsedMb", memoryCollector.getMemoryUsedMb());
+            payload.put("memoryFreeMb", memoryCollector.getMemoryFreeMb());
+            payload.put("diskUsagePercent", diskCollector.getDiskUsagePercent());
+            payload.put("diskUsedGb", diskCollector.getDiskUsedGb());
+            payload.put("diskFreeGb", diskCollector.getDiskFreeGb());
+            payload.put("networkRxBytesSec", networkCollector.getDownloadSpeedBytesSec());
+            payload.put("networkTxBytesSec", networkCollector.getUploadSpeedBytesSec());
+            payload.put("cpuTemperature", cpuCollector.getCpuTemperature());
+            payload.put("activeProcessCount", processCollector.getActiveProcessCount());
+            payload.put("uptimeSeconds", systemInfoCollector.getUptimeSeconds());
+            payload.put("internetConnected", internetOk);
+            payload.put("topProcesses", processCollector.getTopProcesses(10));
+
+            metricsSender.sendMetricsPayload(payload);
+
+            // Sync software inventory on initial cycle (#1) or every 300 cycles (5 minutes)
+            if (cycleCounter == 1 || cycleCounter % 300 == 0) {
+                Executors.newSingleThreadExecutor().submit(() -> {
+                    var softwareList = softwareCollector.collectInstalledSoftware();
+                    metricsSender.sendSoftwarePayload(AgentConfig.getAgentId(), softwareList);
+                });
+            }
+        } catch (Exception e) {
+            log.error("Error during periodic metric collection", e);
+        }
+    }
+}

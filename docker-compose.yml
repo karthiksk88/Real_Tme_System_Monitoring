@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # MySQL 8.0 Database Container
+  mysql-db:
+    image: mysql:8.0
+    container_name: neurosys-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-neurosys_root_password_123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-neurosys_db}
+      MYSQL_USER: ${MYSQL_USER:-neurosys_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-neurosys_password_123}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Python AI Predictive Service (FastAPI + Scikit-learn)
+  neurosys-ai:
+    build:
+      context: ./neurosys-ai
+      dockerfile: Dockerfile
+    container_name: neurosys-ai
+    restart: always
+    environment:
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Spring Boot 3 Central Backend Application
+  neurosys-backend:
+    build:
+      context: ./neurosys-backend
+      dockerfile: Dockerfile
+    container_name: neurosys-backend
+    restart: always
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      neurosys-ai:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/${MYSQL_DATABASE:-neurosys_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-neurosys_user}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-neurosys_password_123}
+      NEUROSYS_AI_SERVICE_URL: http://neurosys-ai:8000
+      NEUROSYS_JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # React Frontend Dashboard with Nginx Reverse Proxy
+  neurosys-frontend:
+    build:
+      context: ./neurosys-frontend
+      dockerfile: Dockerfile
+    container_name: neurosys-frontend
+    restart: always
+    depends_on:
+      - neurosys-backend
+    ports:
+      - "80:80"
+
+volumes:
+  mysql_data:
+    driver: local

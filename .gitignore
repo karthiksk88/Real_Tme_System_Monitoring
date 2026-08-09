@@ -1,0 +1,55 @@
+# Monorepo Git Ignore Rules
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor Files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.iml
+*.ipr
+*.iws
+
+# Build Outputs & Targets (Java/Maven)
+**/target/
+**/*.class
+**/*.jar
+**/*.war
+**/*.ear
+
+# Node / React Frontend
+**/node_modules/
+**/dist/
+**/build/
+.output/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Python AI Engine
+**/venv/
+**/env/
+**/ENV/
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+*.joblib
+*.pkl
+
+# Local Configuration & Secrets
+.env
+.env.local
+.env.production
+agent.properties.local
+*.pem
+*.key
+*.crt
