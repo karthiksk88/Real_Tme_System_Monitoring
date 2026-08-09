@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 import javax.sql.DataSource;
+import java.net.URI;
 
 @Slf4j
 @Configuration
@@ -28,16 +29,37 @@ public class DatabaseConfig {
         String pass = System.getenv("MYSQLPASSWORD");
 
         HikariConfig config = new HikariConfig();
+        boolean configured = false;
 
         if (rawUrl != null && rawUrl.startsWith("mysql://")) {
-            String jdbcUrl = rawUrl.replace("mysql://", "jdbc:mysql://");
-            if (!jdbcUrl.contains("?")) {
-                jdbcUrl += "?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
+            try {
+                URI uri = new URI(rawUrl);
+                String userInfo = uri.getUserInfo();
+                String username = user != null ? user : "root";
+                String password = pass != null ? pass : "";
+                if (userInfo != null && userInfo.contains(":")) {
+                    String[] parts = userInfo.split(":", 2);
+                    username = parts[0];
+                    password = parts[1];
+                }
+                String hostName = uri.getHost();
+                int portNum = uri.getPort() > 0 ? uri.getPort() : 3306;
+                String dbName = uri.getPath() != null && uri.getPath().length() > 1 ? uri.getPath().substring(1) : "railway";
+
+                String jdbcUrl = String.format("jdbc:mysql://%s:%d/%s?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC",
+                        hostName, portNum, dbName);
+                log.info("Parsed Railway MYSQL_URL -> JDBC: {}, User: {}", jdbcUrl, username);
+                config.setJdbcUrl(jdbcUrl);
+                config.setUsername(username);
+                config.setPassword(password);
+                config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+                configured = true;
+            } catch (Exception e) {
+                log.error("Failed to parse raw MYSQL_URL: {}, falling back to host params", rawUrl, e);
             }
-            log.info("Configuring Hikari DataSource with Railway URL: {}", jdbcUrl);
-            config.setJdbcUrl(jdbcUrl);
-            config.setDriverClassName("com.mysql.cj.jdbc.Driver");
-        } else if (host != null && !host.trim().isEmpty()) {
+        }
+
+        if (!configured && host != null && !host.trim().isEmpty()) {
             String jdbcUrl = String.format("jdbc:mysql://%s:%s/%s?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC",
                     host, port != null ? port : "3306", db != null ? db : "railway");
             log.info("Configuring Hikari DataSource with Railway Host: {}", jdbcUrl);
@@ -45,7 +67,10 @@ public class DatabaseConfig {
             config.setUsername(user != null ? user : "root");
             config.setPassword(pass != null ? pass : "");
             config.setDriverClassName("com.mysql.cj.jdbc.Driver");
-        } else {
+            configured = true;
+        }
+
+        if (!configured) {
             log.info("Configuring fallback H2 DataSource...");
             config.setJdbcUrl("jdbc:h2:mem:neurosys;DB_CLOSE_DELAY=-1;MODE=MySQL");
             config.setDriverClassName("org.h2.Driver");
