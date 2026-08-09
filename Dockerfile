@@ -20,5 +20,5 @@ COPY --from=build /app/neurosys-backend/target/neurosys-backend-1.0.0-SNAPSHOT.j
 # Expose Spring Boot port
 EXPOSE 8080
 
-# Run Spring Boot application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run Spring Boot application with dynamic Railway PORT binding
+ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
