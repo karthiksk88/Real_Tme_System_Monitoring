@@ -1,8 +1,0 @@
-[variables]
-NIXPACKS_JDK_VERSION = "17"
-
-[phases.build]
-cmds = ["mvn clean package -DskipTests"]
-
-[start]
-cmd = "java -jar target/neurosys-backend-1.0.0-SNAPSHOT.jar"
