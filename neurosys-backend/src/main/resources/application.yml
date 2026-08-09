@@ -8,6 +8,9 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:${MYSQLUSER:${MYSQL_USER:root}}}
     password: ${SPRING_DATASOURCE_PASSWORD:${MYSQLPASSWORD:${MYSQL_PASSWORD:Karthik@2005}}}
     driver-class-name: ${SPRING_DATASOURCE_DRIVER:com.mysql.cj.jdbc.Driver}
+    hikari:
+      initialization-fail-timeout: -1
+      connection-timeout: 10000
   jpa:
     hibernate:
       ddl-auto: update
