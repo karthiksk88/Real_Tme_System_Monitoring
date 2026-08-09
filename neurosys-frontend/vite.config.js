@@ -7,12 +7,12 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'https://realtmesystemmonitoring-production.up.railway.app',
         changeOrigin: true,
         secure: false,
       },
       '/ws-neurosys': {
-        target: 'http://localhost:8080',
+        target: 'https://realtmesystemmonitoring-production.up.railway.app',
         ws: true,
         changeOrigin: true,
       }
