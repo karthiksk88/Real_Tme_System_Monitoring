@@ -22,8 +22,8 @@ public class GeminiAiClient {
     @Value("${neurosys.ai.gemini.api-key:}")
     private String apiKey;
 
-    @Value("${neurosys.ai.gemini.model:gemini-2.5-flash}")
-    private String model = "gemini-2.5-flash";
+    @Value("${neurosys.ai.gemini.model:gemini-1.5-flash}")
+    private String model = "gemini-1.5-flash";
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -50,8 +50,12 @@ public class GeminiAiClient {
             return null;
         }
 
-        String targetModel = (model != null && !model.trim().isEmpty()) ? model.trim() : "gemini-2.5-flash";
-        String url = String.format("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", targetModel, apiKey);
+        List<String> modelsToTry = List.of(
+                (model != null && !model.trim().isEmpty()) ? model.trim() : "gemini-1.5-flash",
+                "gemini-2.0-flash",
+                "gemini-2.5-flash",
+                "gemini-1.5-pro"
+        );
 
         String promptText = String.format("""
                 SYSTEM INSTRUCTIONS:
@@ -78,34 +82,36 @@ public class GeminiAiClient {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        try {
-            HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(requestBody), headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+        for (String targetModel : modelsToTry) {
+            String url = String.format("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", targetModel, apiKey);
+            try {
+                HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(requestBody), headers);
+                ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List candidates = (List) response.getBody().get("candidates");
-                if (candidates != null && !candidates.isEmpty()) {
-                    Map candidate = (Map) candidates.get(0);
-                    Map content = (Map) candidate.get("content");
-                    if (content != null) {
-                        List parts = (List) content.get("parts");
-                        if (parts != null && !parts.isEmpty()) {
-                            Map part = (Map) parts.get(0);
-                            return (String) part.get("text");
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                    List candidates = (List) response.getBody().get("candidates");
+                    if (candidates != null && !candidates.isEmpty()) {
+                        Map candidate = (Map) candidates.get(0);
+                        Map content = (Map) candidate.get("content");
+                        if (content != null) {
+                            List parts = (List) content.get("parts");
+                            if (parts != null && !parts.isEmpty()) {
+                                Map part = (Map) parts.get(0);
+                                return (String) part.get("text");
+                            }
                         }
                     }
                 }
+            } catch (HttpStatusCodeException e) {
+                log.warn("Model {} call failed with status {}", targetModel, e.getStatusCode());
+                if (e.getStatusCode().value() == 400 || e.getStatusCode().value() == 403) {
+                    return "⚠️ **Google Gemini API Key Notice:** The provided API key is invalid or unauthorized. Please get a valid API Key (starts with `AIzaSy...`) from [Google AI Studio](https://aistudio.google.com/app/apikey) and set `GEMINI_API_KEY` in Railway environment variables or type `key: AIzaSy...` in chat.";
+                }
+            } catch (Exception e) {
+                log.warn("Failed to call Google Gemini model {}", targetModel, e);
             }
-            return null;
-        } catch (HttpStatusCodeException e) {
-            log.error("Google Gemini API HTTP Error status {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
-            if (e.getStatusCode().is4xxClientError()) {
-                return "⚠️ **Google Gemini API Key Required:** The configured API key was revoked or is invalid. Please get a new key from [Google AI Studio](https://aistudio.google.com/app/apikey) and set `GEMINI_API_KEY` in Railway environment variables or type `key: <YOUR_NEW_API_KEY>` directly in chat.";
-            }
-            return null;
-        } catch (Exception e) {
-            log.error("Failed to call Google Gemini REST API model {}", targetModel, e);
-            return null;
         }
+
+        return null;
     }
 }
