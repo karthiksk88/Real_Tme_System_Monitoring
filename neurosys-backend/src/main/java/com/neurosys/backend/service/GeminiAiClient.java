@@ -15,8 +15,8 @@ import java.util.Map;
 @Component
 public class GeminiAiClient {
 
-    @Value("${neurosys.ai.gemini.api-key:AIzaSyDNyvwGXCZJbAsrLAadlu7GBkztFZj6iHY}")
-    private String apiKey = "AIzaSyDNyvwGXCZJbAsrLAadlu7GBkztFZj6iHY";
+    @Value("${neurosys.ai.gemini.api-key:}")
+    private String apiKey;
 
     @Value("${neurosys.ai.gemini.model:gemini-2.5-flash}")
     private String model = "gemini-2.5-flash";

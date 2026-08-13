@@ -41,7 +41,7 @@ neurosys:
   ai:
     provider: ${NEUROSYS_AI_PROVIDER:gemini}
     gemini:
-      api-key: ${GEMINI_API_KEY:AIzaSyDNyvwGXCZJbAsrLAadlu7GBkztFZj6iHY}
+      api-key: ${GEMINI_API_KEY:}
       model: ${GEMINI_MODEL:gemini-2.5-flash}
 
 springdoc:
