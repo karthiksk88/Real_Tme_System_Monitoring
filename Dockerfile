@@ -1,21 +1,28 @@
-# Multi-stage Docker build for NeuroSys Spring Boot Backend
+# Multi-stage Docker build for Unified NeuroSys Monorepo (Spring Boot + React Frontend)
 
-# Stage 1: Build JAR with Maven and OpenJDK 17
-FROM maven:3.9.6-eclipse-temurin-17 AS build
+# Stage 1: Build React Frontend
+FROM node:18-alpine AS frontend-build
+WORKDIR /app/neurosys-frontend
+COPY neurosys-frontend/package*.json ./
+RUN npm install
+COPY neurosys-frontend/ .
+ENV VITE_API_BASE_URL=/api/v1
+RUN npm run build
+
+# Stage 2: Build Maven Backend with Embedded Frontend Static Resources
+FROM maven:3.9.6-eclipse-temurin-17 AS backend-build
 WORKDIR /app
-
-# Copy repository source code
 COPY . .
-
-# Package neurosys-backend skipping tests
+# Copy built frontend dist files into Spring Boot static resources
+COPY --from=frontend-build /app/neurosys-frontend/dist /app/neurosys-backend/src/main/resources/static
 RUN mvn clean package -DskipTests -f neurosys-backend/pom.xml
 
-# Stage 2: Minimal Runtime Container
+# Stage 3: Production Runtime Container
 FROM eclipse-temurin:17-jre
 WORKDIR /app
+COPY --from=backend-build /app/neurosys-backend/target/neurosys-backend-1.0.0-SNAPSHOT.jar app.jar
 
-# Copy compiled JAR from build stage
-COPY --from=build /app/neurosys-backend/target/neurosys-backend-1.0.0-SNAPSHOT.jar app.jar
+ENV PORT=8080
+EXPOSE 8080
 
-# Run Spring Boot application
 ENTRYPOINT ["java", "-jar", "app.jar"]
