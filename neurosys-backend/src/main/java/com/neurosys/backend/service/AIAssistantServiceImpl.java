@@ -37,7 +37,7 @@ public class AIAssistantServiceImpl implements AIAssistantService {
             geminiAiClient.setApiKey(key);
             return ChatMessageResponse.builder()
                     .query(rawMsg)
-                    .answer("✨ **Google Gemini API Key Configured Successfully!**\n\nGoogle Gemini 2.5 Flash is now active. I can now answer ANY question in ANY language and analyze your live computer fleet telemetry!")
+                    .answer("✨ **Google Gemini API Key Configured Successfully!**\n\nGoogle Gemini AI is now active. Ask me any question in Kannada, Hindi, English, or any language!")
                     .detectedIntent("GEMINI_KEY_CONFIGURED")
                     .optimizationRecommendations(List.of("Ask any question in your language", "Check fleet health status"))
                     .timestamp(Instant.now())
@@ -63,15 +63,39 @@ public class AIAssistantServiceImpl implements AIAssistantService {
             }
         }
 
-        // 3. Smart Dynamic Rule Engine (when Gemini API is offline/unconfigured)
+        // 3. Smart Multilingual & Dynamic Rule Engine
         String answer;
         String intent;
         List<String> recs = new ArrayList<>();
 
-        if (msg.equals("hi") || msg.equals("hello") || msg.equals("hey") || msg.contains("namaste") || msg.contains("who are you") || msg.contains("your name")) {
+        if (msg.contains("kannada") || msg.contains("ಕನ್ನಡ")) {
+            intent = "KANNADA_GREETING";
+            answer = "🙏 **ನಮಸ್ಕಾರ! (Hello!)**\n\n" +
+                     "ನಾನು NeuroSys AI Copilot. ನಿಮ್ಮ ಲ್ಯಾಬ್ ಕಂಪ್ಯೂಟರ್‌ಗಳ ಸ್ಥಿತಿ ಮತ್ತು ತಂತ್ರಾಂಶಗಳ ಮಾಹಿತಿಯನ್ನು ನಾನು ಮೇಲ್ವಿಚಾರಣೆ ಮಾಡುತ್ತೇನೆ.\n\n" +
+                     "ನೀವು ಕೇಳಬಹುದು:\n" +
+                     "• *'LAB-01-PC01 ವರದಿ ನೀಡಿ'*\n" +
+                     "• *'ಯಾವ ಕಂಪ್ಯೂಟರ್‌ಗಳಲ್ಲಿ ಇಂಟರ್ನೆಟ್ ಇಲ್ಲ?'*\n" +
+                     "• *'Java 21 ಇಲ್ಲದಿರುವ ಕಂಪ್ಯೂಟರ್‌ಗಳು ಯಾವುವು?'*\n\n" +
+                     "💡 *Google Gemini AI ಸಕ್ರಿಯಗೊಳಿಸಲು: `key: AIzaSy...` ಎಂದು ಟೈಪ್ ಮಾಡಿ.*";
+            recs.add("LAB-01-PC01 ವರದಿ ನೀಡಿ");
+            recs.add("ಇಂಟರ್ನೆಟ್ ಸಂಪರ್ಕ ಪರೀಕ್ಷಿಸಿ");
+        } else if (msg.contains("hindi") || msg.contains("हिंदी")) {
+            intent = "HINDI_GREETING";
+            answer = "🙏 **नमस्ते! (Hello!)**\n\n" +
+                     "मैं NeuroSys AI Copilot हूँ। मैं आपके सभी लैब कंप्यूटरों और सॉफ्टवेयर स्थिति की निगरानी करता हूँ।\n\n" +
+                     "आप पूछ सकते हैं:\n" +
+                     "• *'LAB-01-PC01 की रिपोर्ट दें'*\n" +
+                     "• *'किन कंप्यूटरों में इंटरनेट नहीं है?'*\n\n" +
+                     "💡 *Google Gemini AI सक्रिय करने के लिए: `key: AIzaSy...` टाइप करें।*";
+            recs.add("컴퓨터 리포트 확인");
+        } else if (msg.equals("hi") || msg.equals("hello") || msg.equals("hey") || msg.contains("namaste") || msg.contains("who are you") || msg.contains("your name")) {
             intent = "GREETING";
             answer = "Hello! I am NeuroSys AI Assistant Copilot.\n\n" +
-                     "I can assist you with system monitoring, computer reports, network diagnostics, or general questions. Feel free to ask me anything!";
+                     "I monitor real-time telemetry and software readiness across all connected lab endpoints. Ask me about:\n" +
+                     "• *'Report for LAB-01-PC01'*\n" +
+                     "• *'Which computers don't have Java 21?'*\n" +
+                     "• *'Which computers have no internet?'*\n" +
+                     "• *'Which computers need attention?'*";
             recs.add("Ask for a computer report");
             recs.add("Check internet status across fleet");
         } else if (msg.contains("report") || msg.contains("computer") || msg.contains("pc") || msg.contains("laptop") || msg.contains("workstation")) {
@@ -168,9 +192,9 @@ public class AIAssistantServiceImpl implements AIAssistantService {
             recs.add("Check gateway router and DNS configuration on target endpoints.");
         } else {
             intent = "GENERAL_DYNAMIC_QUERY";
-            answer = String.format("I received your prompt: \"%s\"\n\n" +
-                     "To activate full Google Gemini LLM reasoning for any question in any language (Kannada, Hindi, English, Spanish, etc.), ensure GEMINI_API_KEY is set in Railway environment variables!\n\n" +
-                     "You can also ask about monitored computers (e.g., 'Report for LAB-01-PC01', 'Which computers have no internet?', 'Which computers don't have Java 21?').", rawMsg);
+            answer = String.format("Hello! I received your query: \"%s\"\n\n" +
+                     "I am NeuroSys AI Assistant Copilot monitoring your 5 lab endpoints.\n\n" +
+                     "💡 *To activate full Google Gemini LLM reasoning for any question in any language, type your key in chat e.g.:* `key: AIzaSy...`", rawMsg);
             recs.add("Check fleet computers report");
         }
 
