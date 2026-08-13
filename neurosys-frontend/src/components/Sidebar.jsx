@@ -30,8 +30,6 @@ const Sidebar = () => {
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Computers', path: '/computers', icon: Monitor },
     { name: 'Software Inventory', path: '/software', icon: PackageCheck },
-    { name: 'Lab Readiness', path: '/lab-readiness', icon: CheckCircle2 },
-    { name: 'Pending Approvals', path: '/pending-computers', icon: Clock, badge: pendingCount },
     { name: 'AI Intelligence', path: '/analytics', icon: BarChart3 },
     { name: 'Alert Center', path: '/alerts', icon: Bell },
     { name: 'Settings', path: '/settings', icon: Settings },

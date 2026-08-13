@@ -59,7 +59,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**", "/api/auth/**").permitAll()
-                .requestMatchers("/api/v1/agent/**", "/api/agent/**").permitAll()
+                .requestMatchers("/api/v1/agent/**", "/api/agent/**", "/api/v1/metrics/**", "/api/v1/software/**", "/api/v1/ai-assistant/**").permitAll()
                 .requestMatchers("/api/v1/download/**", "/api/v1/computers/**", "/api/v1/alerts/**", "/api/v1/analytics/**", "/api/v1/health-score/**", "/api/v1/predictions/**").permitAll()
                 .requestMatchers("/ws-neurosys/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/**").permitAll()
                 .anyRequest().authenticated()

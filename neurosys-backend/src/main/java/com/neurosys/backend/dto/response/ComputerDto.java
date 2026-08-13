@@ -35,4 +35,8 @@ public class ComputerDto {
     private Double currentNetworkRxBytesSec;
     private Double currentNetworkTxBytesSec;
     private Double currentNetworkSpeedMbps;
+    private Double lastRecordedCpuUsage;
+    private Double lastRecordedRamUsage;
+    private Double lastRecordedDiskUsage;
+    private Instant lastRecordedAt;
 }

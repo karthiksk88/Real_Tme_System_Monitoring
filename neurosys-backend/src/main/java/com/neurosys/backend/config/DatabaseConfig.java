@@ -72,7 +72,7 @@ public class DatabaseConfig {
 
         if (!configured) {
             log.info("Configuring fallback H2 DataSource...");
-            config.setJdbcUrl("jdbc:h2:mem:neurosys;DB_CLOSE_DELAY=-1;MODE=MySQL");
+            config.setJdbcUrl("jdbc:h2:mem:neurosys;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE");
             config.setDriverClassName("org.h2.Driver");
             config.setUsername("sa");
             config.setPassword("");

@@ -28,18 +28,18 @@ const Settings = () => {
               <Download className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-100">NeuroSys-Agent Executable Package</h3>
-              <p className="text-xs text-slate-400">Enterprise Monitoring Agent for Windows / Linux / macOS endpoints</p>
+              <h3 className="text-base font-bold text-slate-100">NeuroSys Agent for Windows Package</h3>
+              <p className="text-xs text-slate-400">Complete distribution containing executable JAR and 1-click batch setup scripts</p>
             </div>
           </div>
 
           <a
-            href="/downloads/NeuroSys-Agent.jar"
-            download="NeuroSys-Agent.jar"
+            href="/api/v1/download/agent-windows"
+            download="NeuroSys-Agent-Windows.zip"
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-2"
           >
             <Download className="w-4 h-4" />
-            <span>Download NeuroSys-Agent.jar</span>
+            <span>Download NeuroSys Agent for Windows (.zip)</span>
           </a>
         </div>
 
@@ -48,14 +48,16 @@ const Settings = () => {
             <Terminal className="w-4 h-4 text-cyan-400" /> Quick Agent Installation Guide:
           </p>
           <ol className="list-decimal list-inside space-y-1.5 text-slate-400">
-            <li>Download <code className="text-cyan-300 font-mono">NeuroSys-Agent.jar</code> directly using the button above.</li>
-            <li>Run setup script <code className="text-cyan-300 font-mono">scripts\setup-agent.bat</code> or run via CMD:</li>
+            <li>Download <code className="text-cyan-300 font-mono">NeuroSys-Agent-Windows.zip</code> using the button above.</li>
+            <li>Extract the ZIP archive to a folder on the target computer.</li>
+            <li>Double-click <code className="text-cyan-300 font-mono">setup-agent.bat</code> to launch setup.</li>
+            <li>The agent automatically detects hardware specs and registers with the server.</li>
           </ol>
           <div className="p-3 rounded-lg bg-slate-950 font-mono text-[11px] text-emerald-400 border border-slate-800 select-all overflow-x-auto">
-            java -jar NeuroSys-Agent.jar
+            setup-agent.bat
           </div>
           <p className="text-[11px] text-slate-400 flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> The agent will automatically detect system hardware specs via OSHI and appear under <strong>Pending Approvals</strong>.
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Monitored computers will appear in the <strong>Computers Catalog</strong> and trigger notifications on registration.
           </p>
         </div>
       </div>

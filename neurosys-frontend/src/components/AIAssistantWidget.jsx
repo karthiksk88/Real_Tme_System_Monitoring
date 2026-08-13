@@ -2,18 +2,29 @@ import React, { useState } from 'react';
 import { metricsService } from '../services/metricsService';
 import { Bot, Send, X, Sparkles, MessageSquare } from 'lucide-react';
 
+const formatMarkdown = (text) => {
+  if (!text) return '';
+  // Convert **bold** to <strong>
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index} className="font-semibold text-cyan-300">{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+};
+
 const AIAssistantWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
-      text: "Hello! I am NeuroSys AI Copilot. Ask me about system telemetry, missing software (e.g. Java 21), internet connectivity, or lab readiness.",
+      text: "Hello! I am NeuroSys AI Assistant Copilot powered by Google Gemini. Ask me about system telemetry, missing software, internet connectivity, or individual computer reports.",
       recommendations: [
         "Which computers don't have Java 21?",
         "Which computers have no internet?",
         "Which computers need attention?",
-        "Are all computers ready for tomorrow's Java lab?",
-        "Why is PC-12 slow?"
+        "Report for LAB-01-PC01"
       ],
     },
   ]);
@@ -31,19 +42,22 @@ const AIAssistantWidget = () => {
 
     try {
       const res = await metricsService.askAiAssistant(queryText);
-      if (res.success) {
-        const data = res.data;
-        const botMsg = {
-          sender: 'bot',
-          text: data.answer,
-          recommendations: data.optimizationRecommendations,
-        };
-        setMessages((prev) => [...prev, botMsg]);
-      }
+      console.log("AI Assistant response payload:", res);
+      const dataObj = res?.data || res;
+      const answerText = dataObj?.answer || (typeof res === 'string' ? res : 'No response text received.');
+      const recs = dataObj?.optimizationRecommendations || [];
+
+      const botMsg = {
+        sender: 'bot',
+        text: answerText,
+        recommendations: recs,
+      };
+      setMessages((prev) => [...prev, botMsg]);
     } catch (err) {
+      console.error("AI Assistant error:", err);
       setMessages((prev) => [
         ...prev,
-        { sender: 'bot', text: 'Sorry, I encountered an error querying real-time telemetry.' },
+        { sender: 'bot', text: 'Sorry, I encountered an error querying live telemetry backend. Please check network connection.' },
       ]);
     } finally {
       setLoading(false);
@@ -70,7 +84,7 @@ const AIAssistantWidget = () => {
               </div>
               <div>
                 <h4 className="text-sm font-bold text-slate-100">NeuroSys AI Assistant</h4>
-                <p className="text-[10px] text-cyan-400 font-medium">Live Telemetry Context</p>
+                <p className="text-[10px] text-cyan-400 font-medium">Google Gemini Live Telemetry</p>
               </div>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white p-1 rounded-lg">
@@ -89,7 +103,7 @@ const AIAssistantWidget = () => {
                       : 'bg-slate-800/90 text-slate-200 border border-slate-700 rounded-bl-none'
                   }`}
                 >
-                  {m.text}
+                  {formatMarkdown(m.text)}
                 </div>
 
                 {m.recommendations && m.recommendations.length > 0 && (
@@ -107,7 +121,7 @@ const AIAssistantWidget = () => {
                 )}
               </div>
             ))}
-            {loading && <div className="text-slate-400 text-xs italic">AI is analyzing live telemetry...</div>}
+            {loading && <div className="text-cyan-400 text-xs italic flex items-center space-x-1"><Sparkles className="w-3 h-3 animate-spin" /><span>Gemini AI is analyzing live telemetry...</span></div>}
           </div>
 
           {/* Input */}
@@ -117,7 +131,7 @@ const AIAssistantWidget = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask: 'Why is PC-12 slow?'..."
+              placeholder="Ask: 'Report for LAB-01-PC01'..."
               className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
             />
             <button

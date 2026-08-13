@@ -93,6 +93,10 @@ public class ComputerServiceImpl implements ComputerService {
         SystemMetric metric = systemMetricRepository.findLatestByComputerId(computer.getId()).orElse(null);
         HealthScore healthScore = healthScoreRepository.findLatestByComputerId(computer.getId()).orElse(null);
 
+        boolean isLive = computer.getStatus() == ComputerStatus.ONLINE 
+                || computer.getStatus() == ComputerStatus.WARNING 
+                || computer.getStatus() == ComputerStatus.CRITICAL;
+
         Double rx = metric != null && metric.getNetworkRxBytesSec() != null ? metric.getNetworkRxBytesSec() : 0.0;
         Double tx = metric != null && metric.getNetworkTxBytesSec() != null ? metric.getNetworkTxBytesSec() : 0.0;
         double totalBytesSec = rx + tx;
@@ -112,16 +116,20 @@ public class ComputerServiceImpl implements ComputerService {
                 .totalRamMb(computer.getTotalRamMb())
                 .agentVersion(computer.getAgentVersion())
                 .status(computer.getStatus().name())
-                .internetConnected(computer.getInternetConnected() != null ? computer.getInternetConnected() : true)
+                .internetConnected(isLive && computer.getInternetConnected() != null ? computer.getInternetConnected() : false)
                 .uptimeSeconds(computer.getUptimeSeconds() != null ? computer.getUptimeSeconds() : 0L)
                 .lastSeenAt(computer.getLastSeenAt())
-                .currentCpuUsage(metric != null ? metric.getCpuUsagePercent() : 0.0)
-                .currentRamUsage(metric != null ? metric.getMemoryUsagePercent() : 0.0)
-                .currentDiskUsage(metric != null ? metric.getDiskUsagePercent() : 0.0)
+                .currentCpuUsage(isLive && metric != null ? metric.getCpuUsagePercent() : null)
+                .currentRamUsage(isLive && metric != null ? metric.getMemoryUsagePercent() : null)
+                .currentDiskUsage(isLive && metric != null ? metric.getDiskUsagePercent() : null)
                 .currentHealthScore(healthScore != null ? healthScore.getOverallScore() : 100.0)
-                .currentNetworkRxBytesSec(rx)
-                .currentNetworkTxBytesSec(tx)
-                .currentNetworkSpeedMbps(speedMbps)
+                .currentNetworkRxBytesSec(isLive ? rx : null)
+                .currentNetworkTxBytesSec(isLive ? tx : null)
+                .currentNetworkSpeedMbps(isLive ? speedMbps : null)
+                .lastRecordedCpuUsage(metric != null ? metric.getCpuUsagePercent() : null)
+                .lastRecordedRamUsage(metric != null ? metric.getMemoryUsagePercent() : null)
+                .lastRecordedDiskUsage(metric != null ? metric.getDiskUsagePercent() : null)
+                .lastRecordedAt(metric != null ? metric.getRecordedAt() : null)
                 .build();
     }
 }

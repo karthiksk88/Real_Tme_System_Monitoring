@@ -81,9 +81,13 @@ public class SystemMetricsServiceImpl implements SystemMetricsService {
             computer.setUptimeSeconds(request.getUptimeSeconds());
         }
 
-        if (request.getCpuUsagePercent() > 90.0 || request.getMemoryUsagePercent() > 90.0) {
+        double cpu = request.getCpuUsagePercent() != null ? request.getCpuUsagePercent() : 0.0;
+        double ram = request.getMemoryUsagePercent() != null ? request.getMemoryUsagePercent() : 0.0;
+        double disk = request.getDiskUsagePercent() != null ? request.getDiskUsagePercent() : 0.0;
+
+        if (cpu >= 90.0 || ram >= 95.0 || disk >= 95.0) {
             computer.setStatus(ComputerStatus.CRITICAL);
-        } else if (request.getCpuUsagePercent() > 75.0 || request.getMemoryUsagePercent() > 80.0) {
+        } else if (cpu >= 75.0 || ram >= 80.0 || disk >= 85.0) {
             computer.setStatus(ComputerStatus.WARNING);
         } else {
             computer.setStatus(ComputerStatus.ONLINE);

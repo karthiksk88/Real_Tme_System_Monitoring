@@ -1,38 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import StatCard from '../components/StatCard';
 import { metricsService } from '../services/metricsService';
-import { Monitor, Activity, ShieldAlert, Bell, CheckCircle2 } from 'lucide-react';
+import { useWebSocket } from '../contexts/WebSocketContext';
+import { Monitor, Activity, ShieldAlert, Bell, CheckCircle2, RefreshCw, HelpCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  const [summary, setSummary] = useState(null);
   const [computers, setComputers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState('');
+  const { updateLastSeen } = useWebSocket();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 2000); // 2-Second Live Stream
+    const interval = setInterval(fetchDashboardData, 3000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardData = async () => {
     try {
-      // 1. Fetch Analytics Summary
-      const summaryRes = await metricsService.getAnalyticsSummary();
-      const sumData = summaryRes?.data || summaryRes;
-      if (sumData) setSummary(sumData);
-
-      // 2. Fetch Monitored Computers
+      // 1. Fetch Monitored Computers
       const computersRes = await metricsService.getAllComputers();
       const compList = computersRes?.data || (Array.isArray(computersRes) ? computersRes : []);
-      if (Array.isArray(compList)) setComputers(compList);
+      if (Array.isArray(compList)) {
+        setComputers(compList);
+      }
 
-      // 3. Fetch Active Alerts
+      // 2. Fetch Active Alerts
       const alertsRes = await metricsService.getAllAlerts();
       const alertList = alertsRes?.data || (Array.isArray(alertsRes) ? alertsRes : []);
       if (Array.isArray(alertList)) {
-        setAlerts(alertList.filter(a => a.status === 'OPEN' || a.status === 'ACKNOWLEDGED'));
+        setAlerts(alertList.filter((a) => a.status === 'OPEN' || a.status === 'ACKNOWLEDGED'));
       }
+
+      if (updateLastSeen) updateLastSeen();
     } catch (e) {
       console.error('Failed to load dashboard data', e);
     } finally {
@@ -40,15 +44,42 @@ const Dashboard = () => {
     }
   };
 
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    setRefreshMessage('Refreshing...');
+    await fetchDashboardData();
+    setRefreshing(false);
+    setRefreshMessage('Updated just now');
+    setTimeout(() => setRefreshMessage(''), 3000);
+  };
+
+  // Compute strict logical status counts: Total = Online + Offline + Unknown
+  const totalComputers = computers.length;
+  const onlineCount = computers.filter(
+    (c) => c.status === 'ONLINE' || c.status === 'WARNING' || c.status === 'CRITICAL'
+  ).length;
+  const offlineCount = computers.filter((c) => c.status === 'OFFLINE').length;
+  const unknownCount = computers.filter((c) => c.status === 'UNKNOWN').length;
+
   // Identify Systems Needing Attention (Offline, High CPU/RAM/Disk >= 90%, No Internet)
   const computersNeedingAttention = computers.filter((c) => {
     const isOffline = c.status === 'OFFLINE';
-    const isHighCpu = (c.currentCpuUsage || 0) >= 90;
-    const isHighRam = (c.currentRamUsage || 0) >= 90;
-    const isHighDisk = (c.currentDiskUsage || 0) >= 90;
+    const isHighCpu = c.currentCpuUsage != null && c.currentCpuUsage >= 90;
+    const isHighRam = c.currentRamUsage != null && c.currentRamUsage >= 90;
+    const isHighDisk = c.currentDiskUsage != null && c.currentDiskUsage >= 90;
     const isNoInternet = !c.internetConnected && c.status !== 'OFFLINE';
     return isOffline || isHighCpu || isHighRam || isHighDisk || isNoInternet;
   });
+
+  const formatLastSeen = (timestampStr) => {
+    if (!timestampStr) return 'Never';
+    try {
+      const date = new Date(timestampStr);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch (e) {
+      return timestampStr;
+    }
+  };
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto py-2">
@@ -56,52 +87,58 @@ const Dashboard = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
           <h2 className="text-2xl font-extrabold text-slate-100 tracking-tight">
-            Good morning, Admin 👋
+            Predictive Command Dashboard 👋
           </h2>
-          <p className="text-xs text-slate-400 mt-1">Here's the current status of your computer labs.</p>
+          <p className="text-xs text-slate-400 mt-1">
+            Real-time telemetry and health monitoring across computer endpoints.
+          </p>
         </div>
         <div className="flex items-center space-x-3">
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
-            🟢 Live Telemetry Stream
-          </span>
+          {refreshMessage && (
+            <span className="text-xs font-semibold text-cyan-400 transition-all">
+              {refreshMessage}
+            </span>
+          )}
           <button
-            onClick={fetchDashboardData}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white transition-colors"
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white hover:border-cyan-500/40 transition-all flex items-center gap-2 shadow-sm"
           >
-            Refresh Data
+            <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>{refreshing ? 'Refreshing...' : 'Refresh Data'}</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Four Summary Cards */}
+      {/* 2. Four Summary Cards with Strict Count Consistency */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Total Computers"
-          value={summary ? summary.totalComputers : computers.length}
-          subtitle="Monitored lab endpoints"
+          value={totalComputers}
+          subtitle={`Online (${onlineCount}) + Offline (${offlineCount}) + Unknown (${unknownCount})`}
           icon={Monitor}
           color="cyan"
         />
         <StatCard
           title="Online"
-          value={summary ? summary.onlineComputers : computers.filter((c) => c.status === 'ONLINE').length}
-          subtitle="Active heartbeats"
+          value={onlineCount}
+          subtitle="Active telemetry heartbeats"
           icon={Activity}
           color="emerald"
         />
         <StatCard
           title="Offline"
-          value={summary ? summary.offlineComputers : computers.filter((c) => c.status === 'OFFLINE').length}
-          subtitle="Requires physical check"
+          value={offlineCount}
+          subtitle="Missed heartbeat timeout"
           icon={ShieldAlert}
           color="red"
         />
         <StatCard
-          title="Critical Alerts"
-          value={alerts.length}
-          subtitle="Active open alerts"
-          icon={Bell}
-          color="red"
+          title="Unknown / Alerts"
+          value={unknownCount > 0 ? `${unknownCount} Unreported` : `${alerts.length} Active`}
+          subtitle={unknownCount > 0 ? "Awaiting first telemetry payload" : "Open critical alerts"}
+          icon={unknownCount > 0 ? HelpCircle : Bell}
+          color={unknownCount > 0 ? "amber" : "red"}
         />
       </div>
 
@@ -129,31 +166,37 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {computersNeedingAttention.map((c) => {
+              const isOffline = c.status === 'OFFLINE';
+              const isUnknown = c.status === 'UNKNOWN';
+
               let issueBadge = "🔴 Needs Inspection";
               let issueDesc = "Hardware or connectivity requires attention";
 
-              if (c.status === 'OFFLINE') {
-                issueBadge = "⚫ Offline";
-                issueDesc = "Missed heartbeat (>60s)";
+              if (isOffline) {
+                issueBadge = "⚪ Offline";
+                issueDesc = `Missed heartbeat (Last seen: ${formatLastSeen(c.lastSeenAt)})`;
+              } else if (isUnknown) {
+                issueBadge = "⚫ Unknown";
+                issueDesc = "Awaiting initial telemetry report";
               } else if (!c.internetConnected) {
                 issueBadge = "🔴 No Internet";
                 issueDesc = "Computer is online but internet is unavailable";
-              } else if ((c.currentCpuUsage || 0) >= 90) {
+              } else if (c.currentCpuUsage != null && c.currentCpuUsage >= 90) {
                 issueBadge = `🔴 CPU ${Math.round(c.currentCpuUsage)}%`;
                 issueDesc = "CPU utilization critically high";
-              } else if ((c.currentRamUsage || 0) >= 90) {
+              } else if (c.currentRamUsage != null && c.currentRamUsage >= 90) {
                 issueBadge = `🔴 RAM ${Math.round(c.currentRamUsage)}%`;
-                issueDesc = "Memory critically low";
-              } else if ((c.currentDiskUsage || 0) >= 90) {
+                issueDesc = "Memory utilization critically high";
+              } else if (c.currentDiskUsage != null && c.currentDiskUsage >= 90) {
                 issueBadge = `🔴 Disk ${Math.round(c.currentDiskUsage)}%`;
-                issueDesc = "Disk space critically low";
+                issueDesc = "Disk space utilization critically high";
               }
 
               return (
-                <a
+                <div
                   key={c.id}
-                  href={`/computers/${c.id}`}
-                  className="p-5 rounded-2xl glass-card border border-red-500/30 hover:border-red-500/50 transition-all space-y-3 block group shadow-lg"
+                  onClick={() => navigate(`/computers/${c.id}`)}
+                  className="p-5 rounded-2xl glass-card border border-red-500/30 hover:border-red-500/50 cursor-pointer transition-all space-y-3 block group shadow-lg"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-base font-extrabold text-slate-100 group-hover:text-cyan-400 transition-colors">
@@ -164,11 +207,23 @@ const Dashboard = () => {
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 font-medium">{issueDesc}</p>
-                  <div className="text-[11px] text-slate-500 font-mono flex items-center justify-between pt-2 border-t border-slate-800/80">
+                  
+                  {/* Metric Display Logic: Render — for OFFLINE/UNKNOWN to avoid showing stale telemetry as active */}
+                  <div className="text-[11px] text-slate-400 font-mono flex items-center justify-between pt-2 border-t border-slate-800/80">
                     <span>{c.labName}</span>
-                    <span>CPU: {Math.round(c.currentCpuUsage || 0)}% | RAM: {Math.round(c.currentRamUsage || 0)}%</span>
+                    {isOffline ? (
+                      <span className="text-slate-500 font-normal">
+                        Last recorded: CPU {c.lastRecordedCpuUsage != null ? Math.round(c.lastRecordedCpuUsage) + '%' : '—'} | RAM {c.lastRecordedRamUsage != null ? Math.round(c.lastRecordedRamUsage) + '%' : '—'}
+                      </span>
+                    ) : isUnknown ? (
+                      <span className="text-slate-500 italic">No telemetry data</span>
+                    ) : (
+                      <span>
+                        CPU: {c.currentCpuUsage != null ? Math.round(c.currentCpuUsage) + '%' : '—'} | RAM: {c.currentRamUsage != null ? Math.round(c.currentRamUsage) + '%' : '—'}
+                      </span>
+                    )}
                   </div>
-                </a>
+                </div>
               );
             })}
           </div>

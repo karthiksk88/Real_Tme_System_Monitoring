@@ -37,4 +37,25 @@ public class DownloadController {
                 .contentLength(jarFile.length())
                 .body(resource);
     }
+
+    @GetMapping("/agent-windows")
+    @Operation(summary = "Download Monitoring Agent Windows ZIP Package", description = "Download complete Windows package containing JAR and setup scripts")
+    public ResponseEntity<Resource> downloadAgentWindowsPackage() {
+        File zipFile = new File("neurosys-agent.zip");
+        if (!zipFile.exists()) {
+            zipFile = new File("../neurosys-agent.zip");
+        }
+
+        if (!zipFile.exists()) {
+            // Fallback to JAR if ZIP not generated yet
+            return downloadAgentJar();
+        }
+
+        Resource resource = new FileSystemResource(zipFile);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"NeuroSys-Agent-Windows.zip\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(zipFile.length())
+                .body(resource);
+    }
 }

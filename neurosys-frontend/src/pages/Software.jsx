@@ -177,7 +177,7 @@ const Software = () => {
               }`}
             >
               <ListFilter className="w-3.5 h-3.5" />
-              {pageLoading ? 'All Discovered Software...' : `All Discovered Software (${totalDiscoveredCount})`}
+              {pageLoading ? 'All Discovered Software...' : `All Discovered Software (Distinct: ${softwareSummary?.totalDistinctSoftware || 0})`}
             </button>
           </div>
         </div>
@@ -254,7 +254,7 @@ const Software = () => {
           {/* Suggestions / Fuzzy Matches */}
           {searchResult?.suggestions && searchResult.suggestions.length > 0 && (
             <div className="flex items-center space-x-2 text-xs">
-              <span className="text-slate-400">Did you mean:</span>
+              <span className="text-slate-400 font-semibold">Did you mean:</span>
               {searchResult.suggestions.map((sug, idx) => (
                 <button
                   key={idx}
@@ -262,7 +262,7 @@ const Software = () => {
                     setQuery(sug);
                     handleSearch(sug);
                   }}
-                  className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 text-xs transition-colors"
+                  className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 text-xs font-semibold transition-colors"
                 >
                   {sug}
                 </button>
@@ -375,7 +375,7 @@ const Software = () => {
             </div>
 
             <span className="text-xs font-bold text-cyan-400">
-              {computerSoftware.length} Applications Discovered by Agent
+              {computerSoftware.length} Applications Installed on Selected Computer
             </span>
           </div>
 
@@ -384,8 +384,8 @@ const Software = () => {
               Loading discovered software list from agent telemetry...
             </div>
           ) : computerSoftware.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-xs">
-              No software inventory available yet.
+            <div className="p-8 text-center text-slate-500 text-xs font-medium">
+              No software inventory received from this computer yet.
             </div>
           ) : (
             <div className="glass-panel rounded-2xl border border-slate-800 overflow-hidden">

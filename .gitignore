@@ -50,6 +50,7 @@ htmlcov/
 .env.local
 .env.production
 agent.properties.local
+neurosys-agent/cache/
 *.pem
 *.key
 *.crt

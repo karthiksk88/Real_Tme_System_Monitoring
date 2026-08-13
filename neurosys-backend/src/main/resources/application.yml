@@ -3,6 +3,9 @@ spring:
     name: neurosys-backend
   profiles:
     active: dev
+  sql:
+    init:
+      mode: never
   datasource:
     url: ${SPRING_DATASOURCE_URL:${MYSQL_PUBLIC_URL:jdbc:mysql://${MYSQLHOST:${MYSQL_HOST:localhost}}:${MYSQLPORT:${MYSQL_PORT:3306}}/${MYSQLDATABASE:${MYSQL_DATABASE:railway}}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}}
     username: ${SPRING_DATASOURCE_USERNAME:${MYSQLUSER:${MYSQL_USER:root}}}
@@ -18,7 +21,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: ${SPRING_JPA_DIALECT:org.hibernate.dialect.MySQLDialect}
   jackson:
     serialization:
       write-dates-as-timestamps: false
@@ -36,6 +38,11 @@ neurosys:
     jwt-refresh-expiration-ms: 604800000 # 7 Days
   ai-service:
     url: ${NEUROSYS_AI_SERVICE_URL:http://localhost:8000}
+  ai:
+    provider: ${NEUROSYS_AI_PROVIDER:gemini}
+    gemini:
+      api-key: ${GEMINI_API_KEY:AIzaSyDNyvwGXCZJbAsrLAadlu7GBkztFZj6iHY}
+      model: ${GEMINI_MODEL:gemini-2.5-flash}
 
 springdoc:
   api-docs:

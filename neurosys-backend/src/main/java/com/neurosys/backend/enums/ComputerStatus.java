@@ -6,5 +6,6 @@ public enum ComputerStatus {
     OFFLINE,
     WARNING,
     CRITICAL,
-    REJECTED
+    REJECTED,
+    UNKNOWN
 }

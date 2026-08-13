@@ -72,7 +72,7 @@ public class AgentRegistrationServiceImpl implements AgentRegistrationService {
                     .cpuModel(request.getCpuModel())
                     .totalRamMb(request.getTotalRamMb())
                     .agentVersion(request.getAgentVersion())
-                    .status(ComputerStatus.ONLINE)
+                    .status(ComputerStatus.UNKNOWN)
                     .lastSeenAt(Instant.now())
                     .build();
         }
