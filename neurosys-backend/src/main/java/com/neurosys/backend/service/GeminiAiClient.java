@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -94,6 +95,12 @@ public class GeminiAiClient {
                         }
                     }
                 }
+            }
+            return null;
+        } catch (HttpStatusCodeException e) {
+            log.error("Google Gemini API HTTP Error status {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            if (e.getStatusCode().is4xxClientError()) {
+                return "⚠️ **Google Gemini API Key Required:** The configured API key was revoked or is invalid. Please get a new key from [Google AI Studio](https://aistudio.google.com/app/apikey) and set `GEMINI_API_KEY` in Railway environment variables or type `key: <YOUR_NEW_API_KEY>` directly in chat.";
             }
             return null;
         } catch (Exception e) {
