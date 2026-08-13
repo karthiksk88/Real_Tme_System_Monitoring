@@ -37,9 +37,9 @@ public class AIAssistantServiceImpl implements AIAssistantService {
             geminiAiClient.setApiKey(key);
             return ChatMessageResponse.builder()
                     .query(rawMsg)
-                    .answer("✨ **Google Gemini API Key Configured Successfully!**\n\nGoogle Gemini 2.5 Flash is now active. Ask me any complex IT monitoring question and I will analyze live computer telemetry using Gemini LLM reasoning!")
+                    .answer("✨ **Google Gemini API Key Configured Successfully!**\n\nGoogle Gemini 2.5 Flash is now active. I can now answer ANY question in ANY language and analyze your live computer fleet telemetry!")
                     .detectedIntent("GEMINI_KEY_CONFIGURED")
-                    .optimizationRecommendations(List.of("Which computers need attention right now?", "Summarize fleet health status"))
+                    .optimizationRecommendations(List.of("Ask any question in your language", "Check fleet health status"))
                     .timestamp(Instant.now())
                     .build();
         }
@@ -49,12 +49,12 @@ public class AIAssistantServiceImpl implements AIAssistantService {
             try {
                 String liveContext = buildLiveContextSnapshot();
                 String geminiAnswer = geminiAiClient.generateResponse(liveContext, rawMsg);
-                if (geminiAnswer != null && !geminiAnswer.trim().isEmpty() && !geminiAnswer.contains("Error calling Google Gemini API")) {
+                if (geminiAnswer != null && !geminiAnswer.trim().isEmpty()) {
                     return ChatMessageResponse.builder()
                             .query(rawMsg)
-                            .answer("✨ **Google Gemini AI Insight:**\n\n" + geminiAnswer)
+                            .answer("✨ **Google Gemini AI:**\n\n" + geminiAnswer)
                             .detectedIntent("GEMINI_LLM_QUERY")
-                            .optimizationRecommendations(List.of("Ask about computer slowness", "Ask about software compliance"))
+                            .optimizationRecommendations(List.of("Ask follow-up questions", "Check fleet computers"))
                             .timestamp(Instant.now())
                             .build();
                 }
@@ -63,22 +63,18 @@ public class AIAssistantServiceImpl implements AIAssistantService {
             }
         }
 
-        // 3. Fallback Rule Engine
+        // 3. Smart Dynamic Rule Engine (when Gemini API is offline/unconfigured)
         String answer;
         String intent;
         List<String> recs = new ArrayList<>();
 
-        if (msg.equals("hi") || msg.equals("hello") || msg.equals("hey") || msg.contains("who are you") || msg.contains("your name")) {
+        if (msg.equals("hi") || msg.equals("hello") || msg.equals("hey") || msg.contains("namaste") || msg.contains("who are you") || msg.contains("your name")) {
             intent = "GREETING";
             answer = "Hello! I am NeuroSys AI Assistant Copilot.\n\n" +
-                     "I monitor real-time telemetry and software readiness across all connected lab endpoints. Ask me about:\n" +
-                     "• Computer status or specific endpoint reports (e.g. *'Report for LAB-01-PC01'*)\n" +
-                     "• Missing software (e.g. *'Which computers don't have Java 21?'*)\n" +
-                     "• Network connectivity (e.g. *'Which computers have no internet?'*)\n" +
-                     "• Fleet issues (e.g. *'Which computers need attention?'*)";
+                     "I can assist you with system monitoring, computer reports, network diagnostics, or general questions. Feel free to ask me anything!";
             recs.add("Ask for a computer report");
             recs.add("Check internet status across fleet");
-        } else if (msg.contains("report") || msg.contains("computer") || msg.contains("pc")) {
+        } else if (msg.contains("report") || msg.contains("computer") || msg.contains("pc") || msg.contains("laptop") || msg.contains("workstation")) {
             intent = "COMPUTER_REPORT_QUERY";
             String searchTarget = extractSearchTerm(msg);
             List<Computer> all = computerRepository.findAll();
@@ -89,21 +85,20 @@ public class AIAssistantServiceImpl implements AIAssistantService {
                     .findFirst().orElse(null);
 
             if (matched != null) {
-                ComputerDto dto = contextService.findComputerByNameOrId(matched.getHostname());
                 answer = String.format("""
-                        📊 **Detailed System Report for %s:**
+                        📊 **System Diagnostic Report for %s (%s):**
                         • **Hostname:** %s
                         • **Computer Name:** %s
                         • **IP Address:** %s (MAC: %s)
-                        • **Lab:** %s
+                        • **Lab Assignment:** %s
                         • **Operating System:** %s (%s)
-                        • **CPU Model:** %s
-                        • **Total RAM:** %.0f MB
+                        • **CPU Specs:** %s (%.0f MB RAM)
                         • **Status:** %s
                         • **Internet Access:** %s
-                        • **Last Seen:** %s
+                        • **Last Telemetry Signal:** %s
                         """,
                         matched.getHostname(),
+                        matched.getComputerName() != null ? matched.getComputerName() : "N/A",
                         matched.getHostname(),
                         matched.getComputerName() != null ? matched.getComputerName() : "N/A",
                         matched.getIpAddress(),
@@ -117,11 +112,11 @@ public class AIAssistantServiceImpl implements AIAssistantService {
                         Boolean.TRUE.equals(matched.getInternetConnected()) ? "🟢 CONNECTED" : "🔴 DISCONNECTED / OFFLINE",
                         matched.getLastSeenAt() != null ? matched.getLastSeenAt().toString() : "Never"
                 );
-                recs.add("Inspect running processes for " + matched.getHostname());
+                recs.add("Inspect metrics for " + matched.getHostname());
             } else {
                 StringBuilder sb = new StringBuilder();
-                sb.append(String.format("🔍 No computer matching '**%s**' was found in the monitored inventory.\n\n", searchTarget));
-                sb.append("**Monitored Endpoints Currently Registered:**\n");
+                sb.append(String.format("🔍 No computer matching '**%s**' was found in the registered inventory.\n\n", searchTarget));
+                sb.append("**Registered Fleet Endpoints:**\n");
                 for (Computer c : all) {
                     sb.append(String.format("• **%s** (%s) - %s in %s\n", c.getHostname(), c.getIpAddress(), c.getStatus(), c.getLabName()));
                 }
@@ -171,37 +166,12 @@ public class AIAssistantServiceImpl implements AIAssistantService {
                 answer = sb.toString();
             }
             recs.add("Check gateway router and DNS configuration on target endpoints.");
-        } else if (msg.contains("attention") || msg.contains("issues") || msg.contains("problem")) {
-            intent = "COMPUTERS_NEEDING_ATTENTION_QUERY";
-            List<ComputerDto> offline = contextService.getOfflineComputers();
-            List<ComputerDto> lowDisk = contextService.getLowDiskComputers();
-            List<ComputerDto> topCpu = contextService.getTopCpuComputers().stream().filter(c -> c.getCurrentCpuUsage() > 85.0).toList();
-
-            if (offline.isEmpty() && lowDisk.isEmpty() && topCpu.isEmpty()) {
-                answer = "✓ All monitored computers are healthy! No systems currently require immediate attention.";
-            } else {
-                StringBuilder sb = new StringBuilder("⚠️ **Computers that require attention:**\n");
-                for (ComputerDto c : offline) {
-                    sb.append(String.format("• **%s**: OFFLINE\n", c.getHostname()));
-                }
-                for (ComputerDto c : lowDisk) {
-                    sb.append(String.format("• **%s**: Low Disk Space (%.1f%% used)\n", c.getHostname(), c.getCurrentDiskUsage()));
-                }
-                for (ComputerDto c : topCpu) {
-                    sb.append(String.format("• **%s**: Sustained High CPU (%.1f%% utilization)\n", c.getHostname(), c.getCurrentCpuUsage()));
-                }
-                answer = sb.toString();
-            }
-            recs.add("Review critical alerts in the Alert Center.");
         } else {
-            intent = "GENERAL_AI_ASSISTANT_QUERY";
-            answer = "Hello! I am NeuroSys AI Assistant Copilot.\n\n" +
-                     "I monitor real-time telemetry and software readiness across all connected lab endpoints. Ask me about:\n" +
-                     "• *'Give me report for LAB-01-PC01'*\n" +
-                     "• *'Which computers don't have Java 21?'*\n" +
-                     "• *'Which computers have no internet?'*\n" +
-                     "• *'Which computers need attention?'*";
-            recs.add("Search for a computer report");
+            intent = "GENERAL_DYNAMIC_QUERY";
+            answer = String.format("I received your prompt: \"%s\"\n\n" +
+                     "To activate full Google Gemini LLM reasoning for any question in any language (Kannada, Hindi, English, Spanish, etc.), ensure GEMINI_API_KEY is set in Railway environment variables!\n\n" +
+                     "You can also ask about monitored computers (e.g., 'Report for LAB-01-PC01', 'Which computers have no internet?', 'Which computers don't have Java 21?').", rawMsg);
+            recs.add("Check fleet computers report");
         }
 
         return ChatMessageResponse.builder()
@@ -214,7 +184,17 @@ public class AIAssistantServiceImpl implements AIAssistantService {
     }
 
     private String extractSearchTerm(String msg) {
-        String clean = msg.replace("give me", "").replace("computer report", "").replace("report for", "").replace("report", "").replace("show", "").trim();
+        String clean = msg.replace("give me", "")
+                .replace("laptop report", "")
+                .replace("computer report", "")
+                .replace("report for", "")
+                .replace("report", "")
+                .replace("show", "")
+                .replace("want", "")
+                .replace("laptop", "")
+                .replace("computer", "")
+                .replace("pc", "")
+                .trim();
         return clean.isEmpty() ? "pc" : clean;
     }
 
@@ -223,19 +203,19 @@ public class AIAssistantServiceImpl implements AIAssistantService {
         long distinctSwCount = softwareInventoryRepository.findDistinctSoftwareNames().size();
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("Total Endpoints: %d | Distinct Software Installed Fleetwide: %d\n", computers.size(), distinctSwCount));
-        sb.append("Endpoints Telemetry Snapshot:\n");
+        sb.append(String.format("Total Monitored Endpoints: %d | Total Distinct Software Installed: %d\n", computers.size(), distinctSwCount));
+        sb.append("Monitored Endpoints Snapshot:\n");
 
         for (Computer c : computers) {
             boolean isLive = c.getStatus() == ComputerStatus.ONLINE || c.getStatus() == ComputerStatus.WARNING || c.getStatus() == ComputerStatus.CRITICAL;
             boolean hasNet = isLive && Boolean.TRUE.equals(c.getInternetConnected());
-            sb.append(String.format("- Hostname: %s | Computer Name: %s | Status: %s | Lab: %s | IP: %s | Internet Access: %s\n",
+            sb.append(String.format("- Hostname: %s | Computer Name: %s | Status: %s | Lab: %s | IP: %s | Internet: %s\n",
                     c.getHostname(),
                     c.getComputerName() != null ? c.getComputerName() : "N/A",
                     c.getStatus(),
                     c.getLabName(),
                     c.getIpAddress(),
-                    hasNet ? "YES (Connected)" : "NO (Disconnected / Offline)"));
+                    hasNet ? "CONNECTED" : "DISCONNECTED / OFFLINE"));
         }
 
         return sb.toString();

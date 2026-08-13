@@ -3,7 +3,10 @@ package com.neurosys.backend.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -27,7 +30,7 @@ public class GeminiAiClient {
     public GeminiAiClient() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(6000);
-        factory.setReadTimeout(10000);
+        factory.setReadTimeout(12000);
         this.restTemplate = new RestTemplate(factory);
     }
 
@@ -51,11 +54,14 @@ public class GeminiAiClient {
 
         String promptText = String.format("""
                 SYSTEM INSTRUCTIONS:
-                You are NeuroSys AI Copilot, an expert IT infrastructure monitor and predictive analyst.
-                Answer the user's question clearly, concisely, and accurately based strictly on the following live computer fleet telemetry data context.
-                Provide bullet points and actionable IT optimization recommendations where relevant.
+                You are NeuroSys AI Copilot, a helpful, highly intelligent AI assistant and IT infrastructure analyst.
 
-                LIVE SYSTEM TELEMETRY CONTEXT:
+                CORE BEHAVIOR RULES:
+                1. MULTILINGUAL SUPPORT: You MUST understand and respond fluently in whatever language the user communicates in (e.g., English, Kannada, Hindi, Tamil, Telugu, Spanish, French, German, etc.).
+                2. UNIVERSAL ANSWERS: Answer ANY question, greeting, general knowledge topic, programming request, or troubleshooting problem clearly, politely, and meaningfully.
+                3. TELEMETRY INTEGRATION: When the user asks about computers, system health, offline endpoints, or software in the monitored lab fleet, reference the following live system telemetry snapshot:
+
+                LIVE SYSTEM TELEMETRY SNAPSHOT:
                 %s
 
                 USER QUESTION:
