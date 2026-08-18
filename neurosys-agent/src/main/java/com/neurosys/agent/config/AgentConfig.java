@@ -30,15 +30,21 @@ public class AgentConfig {
     }
 
     public static String getServerUrl() {
-        String envUrl = System.getenv("NEUROSYS_SERVER_URL");
-        if (envUrl != null && !envUrl.trim().isEmpty()) {
-            return envUrl.trim();
+        String url = System.getenv("NEUROSYS_SERVER_URL");
+        if (url == null || url.trim().isEmpty()) {
+            url = System.getProperty("server.url");
         }
-        String sysUrl = System.getProperty("server.url");
-        if (sysUrl != null && !sysUrl.trim().isEmpty()) {
-            return sysUrl.trim();
+        if (url == null || url.trim().isEmpty()) {
+            url = properties.getProperty("server.url", "https://zestful-energy-production-5cb8.up.railway.app/api/v1");
         }
-        return properties.getProperty("server.url", "http://localhost:8080/api/v1");
+        url = url.trim();
+        while (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+        if (!url.endsWith("/api/v1") && !url.endsWith("/api")) {
+            url = url + "/api/v1";
+        }
+        return url;
     }
 
     public static String getLabName() {

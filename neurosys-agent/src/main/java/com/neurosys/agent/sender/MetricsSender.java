@@ -34,22 +34,28 @@ public class MetricsSender {
     public boolean registerWithServer(Map<String, Object> regData) {
         try {
             String jsonBody = objectMapper.writeValueAsString(regData);
+            String targetUrl = AgentConfig.getServerUrl() + "/agent/register";
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(AgentConfig.getServerUrl() + "/agent/register"))
+                    .uri(URI.create(targetUrl))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                Map<String, Object> respMap = objectMapper.readValue(response.body(), Map.class);
-                if (respMap.containsKey("data")) {
-                    Map<String, Object> data = (Map<String, Object>) respMap.get("data");
-                    this.agentAuthToken = (String) data.get("agentAuthToken");
-                    String status = (String) data.get("status");
-                    log.info("Agent registration response from server: AgentID={}, Status={}", regData.get("agentId"), status);
-                    return true;
+                String body = response.body().trim();
+                if (body.startsWith("{")) {
+                    Map<String, Object> respMap = objectMapper.readValue(body, Map.class);
+                    if (respMap.containsKey("data")) {
+                        Map<String, Object> data = (Map<String, Object>) respMap.get("data");
+                        this.agentAuthToken = (String) data.get("agentAuthToken");
+                        String status = (String) data.get("status");
+                        log.info("Agent registration response from server: AgentID={}, Status={}", regData.get("agentId"), status);
+                        return true;
+                    }
                 }
+            } else {
+                log.warn("Server HTTP status {} at {}. Waiting for backend deployment...", response.statusCode(), targetUrl);
             }
         } catch (Exception e) {
             log.warn("Failed to register agent with server: {}. Retrying in next cycle...", e.getMessage());
@@ -67,9 +73,12 @@ public class MetricsSender {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                Map<String, Object> respMap = objectMapper.readValue(response.body(), Map.class);
-                if (respMap.containsKey("data")) {
-                    return (String) respMap.get("data");
+                String body = response.body().trim();
+                if (body.startsWith("{")) {
+                    Map<String, Object> respMap = objectMapper.readValue(body, Map.class);
+                    if (respMap.containsKey("data")) {
+                        return (String) respMap.get("data");
+                    }
                 }
             }
         } catch (Exception e) {
