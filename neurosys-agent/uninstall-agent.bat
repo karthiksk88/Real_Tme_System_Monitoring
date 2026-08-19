@@ -1,18 +1,16 @@
 @echo off
-setlocal enabledelayedexpansion
-title Uninstall NeuroSys Telemetry Agent
+setlocal
+cd /d "%~dp0"
 
 net session >nul 2>&1
 if %errorlevel% neq 0 (
-    powershell -Command "Start-Process '%~f0' -Verb RunAs"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process '%~f0' -Verb RunAs"
     exit /b
 )
 
-cd /d "%~dp0"
-
 echo Uninstalling NeuroSys Telemetry Agent service...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Stop-ScheduledTask -TaskName 'NeuroSysAgent' -ErrorAction SilentlyContinue; Unregister-ScheduledTask -TaskName 'NeuroSysAgent' -Confirm:\$false -ErrorAction SilentlyContinue" >nul 2>&1
-wmic process where "commandline like '%%neurosys-agent%%'" call terminate >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Process -Name java -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*neurosys-agent*' } | Stop-Process -Force -ErrorAction SilentlyContinue" >nul 2>&1
 
 echo.
 echo ========================================

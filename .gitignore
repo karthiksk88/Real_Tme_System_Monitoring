@@ -17,9 +17,16 @@ desktop.ini
 # Build Outputs & Targets (Java/Maven)
 **/target/
 **/*.class
-**/*.jar
 **/*.war
 **/*.ear
+
+# Agent Local Machine State & Cache
+agent_id.txt
+**/agent_id.txt
+neurosys-agent/cache/
+neurosys-agent/logs/
+**/logs/
+*.log
 
 # Node / React Frontend
 **/node_modules/
@@ -50,7 +57,6 @@ htmlcov/
 .env.local
 .env.production
 agent.properties.local
-neurosys-agent/cache/
 *.pem
 *.key
 *.crt
