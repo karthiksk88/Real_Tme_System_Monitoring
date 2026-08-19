@@ -43,7 +43,6 @@ public class AgentRegistrationServiceImpl implements AgentRegistrationService {
             computer.setCpuModel(request.getCpuModel());
             computer.setTotalRamMb(request.getTotalRamMb());
             computer.setAgentVersion(request.getAgentVersion());
-            // Keep status as PENDING or REJECTED if not yet approved
             if (computer.getStatus() != ComputerStatus.PENDING && computer.getStatus() != ComputerStatus.REJECTED) {
                 computer.setStatus(ComputerStatus.ONLINE);
             }
@@ -72,13 +71,13 @@ public class AgentRegistrationServiceImpl implements AgentRegistrationService {
                     .cpuModel(request.getCpuModel())
                     .totalRamMb(request.getTotalRamMb())
                     .agentVersion(request.getAgentVersion())
-                    .status(ComputerStatus.UNKNOWN)
+                    .status(ComputerStatus.ONLINE)
                     .lastSeenAt(Instant.now())
                     .build();
         }
 
         computer = computerRepository.save(computer);
-        String agentToken = "AGENT_AUTH_TOKEN_" + UUID.nameUUIDFromBytes(computer.getAgentId().getBytes());
+        String agentToken = "AGENT-AUTH-TOKEN-" + UUID.nameUUIDFromBytes(computer.getAgentId().getBytes());
 
         return AgentRegistrationResponse.builder()
                 .computerId(computer.getId())
