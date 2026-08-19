@@ -40,28 +40,13 @@ public class RemotePowerServiceImpl implements RemotePowerService {
 
         if (computer.getStatus() == ComputerStatus.PENDING || computer.getStatus() == ComputerStatus.REJECTED) {
             log.warn("Attempted remote power action on unapproved computer {}", computer.getHostname());
-            throw new IllegalStateException("Computer endpoint is unapproved. Remote actions unavailable.");
+            throw new IllegalArgumentException("Computer endpoint is unapproved. Remote actions unavailable.");
         }
 
-        // Offline validation: Must be ONLINE/WARNING/CRITICAL with a recent heartbeat (<30s)
-        boolean isRecent = computer.getLastSeenAt() != null &&
-                Duration.between(computer.getLastSeenAt(), Instant.now()).getSeconds() <= 30;
-
-        if (computer.getStatus() == ComputerStatus.OFFLINE || computer.getStatus() == ComputerStatus.UNKNOWN || !isRecent) {
+        // Offline validation: Check if computer is OFFLINE or UNKNOWN
+        if (computer.getStatus() == ComputerStatus.OFFLINE || computer.getStatus() == ComputerStatus.UNKNOWN) {
             log.warn("Attempted remote power action on offline computer {}", computer.getHostname());
-            
-            // Record failed audit attempt
-            RemotePowerAudit failedAudit = RemotePowerAudit.builder()
-                    .userName(requestedBy != null ? requestedBy : "Administrator")
-                    .computerName(computer.getHostname())
-                    .computerId(computer.getId())
-                    .action(type)
-                    .status("FAILED")
-                    .failureReason("Computer is offline. Remote action unavailable.")
-                    .build();
-            auditRepository.save(failedAudit);
-
-            throw new IllegalStateException("Computer is offline. Remote power actions unavailable.");
+            throw new IllegalArgumentException("Computer is offline. Remote power actions unavailable.");
         }
 
         // Check for existing active command to prevent rapid duplicate clicks
