@@ -9,7 +9,12 @@ const RemotePowerManagement = ({ computer, onStatusUpdate }) => {
   const [audits, setAudits] = useState([]);
   const [lastCommandStatus, setLastCommandStatus] = useState(null);
 
-  const isOnline = computer && computer.status === 'ONLINE';
+  // Accept ONLINE, CRITICAL, or WARNING as active online computer states
+  const isOnline = computer && (
+    computer.status === 'ONLINE' || 
+    computer.status === 'CRITICAL' || 
+    computer.status === 'WARNING'
+  );
 
   useEffect(() => {
     if (computer?.id) {
@@ -47,7 +52,6 @@ const RemotePowerManagement = ({ computer, onStatusUpdate }) => {
       }
 
       if (res?.success) {
-        const actionLabel = action === 'LOCK' ? 'Lock' : action === 'RESTART' ? 'Restart' : 'Shutdown';
         const notificationText = action === 'LOCK' 
           ? `🔒 Computer Locked — ${computer.hostname} lock command was sent.`
           : action === 'RESTART'
@@ -88,7 +92,7 @@ const RemotePowerManagement = ({ computer, onStatusUpdate }) => {
               : 'bg-slate-800/60 text-slate-400 border-slate-700'
           }`}>
             <span className={`w-2 h-2 rounded-full mr-1.5 ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-            {isOnline ? 'ONLINE' : 'OFFLINE'}
+            {isOnline ? (computer?.status || 'ONLINE') : 'OFFLINE'}
           </span>
         </div>
       </div>
