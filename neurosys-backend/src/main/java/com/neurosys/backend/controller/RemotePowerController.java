@@ -10,11 +10,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -26,40 +24,36 @@ public class RemotePowerController {
     private final RemotePowerService remotePowerService;
 
     @PostMapping("/computers/{computerId}/lock")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     @Operation(summary = "Lock Workstation", description = "Lock current Windows session on target computer")
     public ResponseEntity<ApiResponse<RemotePowerCommandDto>> lockComputer(
             @PathVariable String computerId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        String username = userDetails != null ? userDetails.getUsername() : "Administrator";
+            Principal principal) {
+        String username = principal != null ? principal.getName() : "Administrator";
         RemotePowerCommandDto command = remotePowerService.issueCommand(computerId, PowerCommandType.LOCK, username);
         return ResponseEntity.ok(ApiResponse.success("Lock command issued successfully", command));
     }
 
     @PostMapping("/computers/{computerId}/restart")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     @Operation(summary = "Restart Windows", description = "Safely restart target Windows workstation")
     public ResponseEntity<ApiResponse<RemotePowerCommandDto>> restartComputer(
             @PathVariable String computerId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        String username = userDetails != null ? userDetails.getUsername() : "Administrator";
+            Principal principal) {
+        String username = principal != null ? principal.getName() : "Administrator";
         RemotePowerCommandDto command = remotePowerService.issueCommand(computerId, PowerCommandType.RESTART, username);
         return ResponseEntity.ok(ApiResponse.success("Restart command issued successfully", command));
     }
 
     @PostMapping("/computers/{computerId}/shutdown")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     @Operation(summary = "Shut Down Windows", description = "Safely shut down target Windows workstation")
     public ResponseEntity<ApiResponse<RemotePowerCommandDto>> shutdownComputer(
             @PathVariable String computerId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        String username = userDetails != null ? userDetails.getUsername() : "Administrator";
+            Principal principal) {
+        String username = principal != null ? principal.getName() : "Administrator";
         RemotePowerCommandDto command = remotePowerService.issueCommand(computerId, PowerCommandType.SHUTDOWN, username);
         return ResponseEntity.ok(ApiResponse.success("Shutdown command issued successfully", command));
     }
 
     @GetMapping("/computers/{computerId}/power-audits")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     @Operation(summary = "Get Power Action Audit History", description = "Retrieve audit log history for remote power actions on computer")
     public ResponseEntity<ApiResponse<List<RemotePowerAuditDto>>> getPowerAudits(@PathVariable String computerId) {
         List<RemotePowerAuditDto> audits = remotePowerService.getAuditsForComputer(computerId);
