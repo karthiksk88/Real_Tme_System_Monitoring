@@ -14,6 +14,8 @@
         <java.version>17</java.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <oshi.version>6.4.11</oshi.version>
         <jackson.version>2.16.1</jackson.version>
         <slf4j.version>2.0.12</slf4j.version>

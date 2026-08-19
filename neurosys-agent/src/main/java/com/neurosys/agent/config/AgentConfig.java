@@ -2,8 +2,15 @@ package com.neurosys.agent.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import oshi.SystemInfo;
+import oshi.hardware.NetworkIF;
 
+import java.io.File;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -14,18 +21,89 @@ public class AgentConfig {
     private static String agentId;
 
     static {
+        // 1. Load agent.properties from classpath
         try (InputStream input = AgentConfig.class.getClassLoader().getResourceAsStream("agent.properties")) {
             if (input != null) {
                 properties.load(input);
             }
         } catch (Exception e) {
-            log.error("Failed to load agent.properties", e);
+            log.error("Failed to load agent.properties from classpath", e);
         }
 
-        // Generate persistent Agent UUID based on MAC/Machine properties
-        agentId = properties.getProperty("agent.id");
-        if (agentId == null || agentId.isEmpty()) {
-            agentId = "AGENT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        // 2. Determine persistent Agent ID (across Windows reboots)
+        agentId = resolvePersistentAgentId();
+    }
+
+    private static String resolvePersistentAgentId() {
+        // Priority 1: Environment variable
+        String envId = System.getenv("NEUROSYS_AGENT_ID");
+        if (envId != null && !envId.trim().isEmpty()) {
+            return envId.trim();
+        }
+
+        // Priority 2: System property
+        String sysId = System.getProperty("agent.id");
+        if (sysId != null && !sysId.trim().isEmpty()) {
+            return sysId.trim();
+        }
+
+        // Priority 3: Configured in agent.properties
+        String propId = properties.getProperty("agent.id");
+        if (propId != null && !propId.trim().isEmpty()) {
+            return propId.trim();
+        }
+
+        // Priority 4: Persistent file agent_id.txt in working directory
+        Path idFilePath = Path.of("agent_id.txt");
+        if (Files.exists(idFilePath)) {
+            try {
+                String savedId = Files.readString(idFilePath).trim();
+                if (!savedId.isEmpty()) {
+                    log.info("Loaded persistent Agent ID from agent_id.txt: {}", savedId);
+                    return savedId;
+                }
+            } catch (Exception e) {
+                log.warn("Could not read agent_id.txt: {}", e.getMessage());
+            }
+        }
+
+        // Priority 5: Deterministic ID derived from Hostname + MAC address hash
+        String generatedId = generateHardwareBasedId();
+
+        // Save generated ID to agent_id.txt for future boots
+        try {
+            Files.writeString(idFilePath, generatedId);
+            log.info("Persisted new Agent ID to agent_id.txt: {}", generatedId);
+        } catch (Exception e) {
+            log.warn("Could not save agent_id.txt: {}", e.getMessage());
+        }
+
+        return generatedId;
+    }
+
+    private static String generateHardwareBasedId() {
+        try {
+            SystemInfo si = new SystemInfo();
+            String hostname = si.getOperatingSystem().getNetworkParams().getHostName();
+            List<NetworkIF> nifs = si.getHardware().getNetworkIFs();
+            String mac = "";
+            for (NetworkIF nif : nifs) {
+                if (nif.getMacaddr() != null && !nif.getMacaddr().isEmpty() && !nif.getMacaddr().equals("00:00:00:00:00:00")) {
+                    mac = nif.getMacaddr();
+                    break;
+                }
+            }
+
+            String rawStr = (hostname + "-" + mac).toLowerCase();
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] hash = md.digest(rawStr.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 4; i++) {
+                sb.append(String.format("%02X", hash[i]));
+            }
+            return "AGENT-" + sb.toString();
+        } catch (Exception e) {
+            return "AGENT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         }
     }
 

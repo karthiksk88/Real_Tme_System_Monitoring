@@ -11,19 +11,21 @@ public class AgentApplication {
 
     public static void main(String[] args) {
         log.info("=================================================");
-        log.info("  Starting NeuroSys OSHI Monitoring Agent Daemon ");
+        log.info("  Starting NeuroSys Telemetry Agent");
+        log.info("  Service Mode: Automatic Windows Background Service");
         log.info("  Agent ID: {}", AgentConfig.getAgentId());
-        log.info("  Server Endpoint: {}", AgentConfig.getServerUrl());
+        log.info("  Server URL: {}", AgentConfig.getServerUrl());
+        log.info("  Lab Name: {}", AgentConfig.getLabName());
         log.info("=================================================");
 
         MetricsScheduler scheduler = new MetricsScheduler();
         scheduler.start();
 
-        // Keep main thread alive
+        // Keep main service thread active
         try {
             Thread.currentThread().join();
         } catch (InterruptedException e) {
-            log.info("NeuroSys Agent daemon interrupted. Exiting gracefully.");
+            log.info("NeuroSys Agent service interrupted. Exiting gracefully.");
             Thread.currentThread().interrupt();
         }
     }

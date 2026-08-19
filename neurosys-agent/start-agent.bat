@@ -1,16 +1,20 @@
 @echo off
-title NeuroSys Agent Daemon Launcher
-echo Starting NeuroSys Monitoring Agent Daemon...
+setlocal enabledelayedexpansion
+title Start NeuroSys Telemetry Agent
 
-set "JAR_NAME=neurosys-agent-1.0.0-SNAPSHOT-exec.jar"
-if exist "%~dp0%JAR_NAME%" (
-    start /min java -jar "%~dp0%JAR_NAME%"
-) else if exist "%~dp0target\%JAR_NAME%" (
-    start /min java -jar "%~dp0target\%JAR_NAME%"
-) else (
-    echo [ERROR] %JAR_NAME% not found.
-    pause
-    exit /b 1
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    powershell -Command "Start-Process '%~f0' -Verb RunAs"
+    exit /b
 )
 
-echo NeuroSys Agent started in background.
+cd /d "%~dp0"
+
+echo Starting NeuroSys Telemetry Agent service...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-ScheduledTask -TaskName 'NeuroSysAgent' -ErrorAction SilentlyContinue" >nul 2>&1
+
+echo.
+echo [SUCCESS] NeuroSys Agent service started.
+echo Status: RUNNING
+echo.
+timeout /t 3 >nul

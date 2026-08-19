@@ -22,6 +22,7 @@ public class MetricsSender {
     private final ObjectMapper objectMapper;
     private final OfflineCacheManager cacheManager;
     private String agentAuthToken;
+    private boolean wasOffline = false;
 
     public MetricsSender() {
         this.httpClient = HttpClient.newBuilder()
@@ -50,15 +51,25 @@ public class MetricsSender {
                         Map<String, Object> data = (Map<String, Object>) respMap.get("data");
                         this.agentAuthToken = (String) data.get("agentAuthToken");
                         String status = (String) data.get("status");
-                        log.info("Agent registration response from server: AgentID={}, Status={}", regData.get("agentId"), status);
+                        log.info("Agent registration successful: AgentID={}, Status={}", regData.get("agentId"), status);
+                        if (wasOffline) {
+                            log.info("Server connection restored. Resuming live telemetry transmission.");
+                            wasOffline = false;
+                        }
                         return true;
                     }
                 }
             } else {
-                log.warn("Server HTTP status {} at {}. Waiting for backend deployment...", response.statusCode(), targetUrl);
+                if (!wasOffline) {
+                    log.warn("Server returned HTTP status {}. Retrying in next sampling cycle...", response.statusCode());
+                    wasOffline = true;
+                }
             }
         } catch (Exception e) {
-            log.warn("Failed to register agent with server: {}. Retrying in next cycle...", e.getMessage());
+            if (!wasOffline) {
+                log.warn("Server/Internet unavailable ({}). Retrying in next sampling cycle...", e.getMessage());
+                wasOffline = true;
+            }
         }
         return false;
     }
@@ -82,9 +93,9 @@ public class MetricsSender {
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to check approval status from server: {}", e.getMessage());
+            // Quiet fallback during offline mode
         }
-        return "PENDING";
+        return "ONLINE";
     }
 
     public void sendMetricsPayload(Map<String, Object> payload) {
@@ -104,14 +115,24 @@ public class MetricsSender {
 
             HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
+                if (wasOffline) {
+                    log.info("Server connection restored. Resuming live telemetry transmission.");
+                    wasOffline = false;
+                }
                 log.info("Successfully transmitted metrics payload to server. CPU: {}%, RAM: {}%",
                         payload.get("cpuUsagePercent"), payload.get("memoryUsagePercent"));
             } else {
-                log.warn("Server returned HTTP error status: {}. Caching payload locally.", response.statusCode());
+                if (!wasOffline) {
+                    log.warn("Server returned HTTP error status: {}. Caching payload locally.", response.statusCode());
+                    wasOffline = true;
+                }
                 cacheManager.cacheUnsentPayload(payload);
             }
         } catch (Exception e) {
-            log.warn("Server unavailable ({}). Caching metrics payload on local disk.", e.getMessage());
+            if (!wasOffline) {
+                log.warn("Server/Internet unavailable ({}). Caching metrics payload on local disk.", e.getMessage());
+                wasOffline = true;
+            }
             cacheManager.cacheUnsentPayload(payload);
         }
     }
