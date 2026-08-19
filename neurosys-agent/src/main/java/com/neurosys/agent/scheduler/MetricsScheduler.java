@@ -1,6 +1,7 @@
 package com.neurosys.agent.scheduler;
 
 import com.neurosys.agent.collector.*;
+import com.neurosys.agent.command.PowerCommandHandler;
 import com.neurosys.agent.config.AgentConfig;
 import com.neurosys.agent.sender.MetricsSender;
 import oshi.SystemInfo;
@@ -27,6 +28,7 @@ public class MetricsScheduler {
     private final InternetCollector internetCollector;
     private final SoftwareCollector softwareCollector;
     private final MetricsSender metricsSender;
+    private final PowerCommandHandler powerCommandHandler;
     private final ScheduledExecutorService scheduler;
     private boolean isRegistered = false;
     private int cycleCounter = 0;
@@ -42,6 +44,7 @@ public class MetricsScheduler {
         this.internetCollector = new InternetCollector();
         this.softwareCollector = new SoftwareCollector();
         this.metricsSender = new MetricsSender();
+        this.powerCommandHandler = new PowerCommandHandler();
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
     }
 
@@ -51,7 +54,7 @@ public class MetricsScheduler {
         // Perform initial registration
         attemptRegistration();
 
-        // Schedule periodic 5-second sampling
+        // Schedule periodic sampling
         scheduler.scheduleAtFixedRate(this::collectAndSendMetrics, 0, AgentConfig.getIntervalSeconds(), TimeUnit.SECONDS);
     }
 
@@ -80,6 +83,9 @@ public class MetricsScheduler {
                 attemptRegistration();
                 return;
             }
+
+            // Check for pending remote power commands (LOCK, RESTART, SHUTDOWN)
+            powerCommandHandler.pollAndExecutePendingCommand();
 
             // Check onboarding approval status from central server
             String status = metricsSender.checkApprovalStatus(AgentConfig.getAgentId());

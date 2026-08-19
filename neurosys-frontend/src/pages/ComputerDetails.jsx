@@ -5,8 +5,9 @@ import HealthGauge from '../components/HealthGauge';
 import ProcessTable from '../components/ProcessTable';
 import FileAnalyzerCard from '../components/FileAnalyzerCard';
 import LogAnalyzer from '../components/LogAnalyzer';
+import RemotePowerManagement from '../components/RemotePowerManagement';
 import { metricsService } from '../services/metricsService';
-import { Monitor, Cpu, HardDrive, Wifi, ShieldAlert, Sparkles, Activity, Clock } from 'lucide-react';
+import { Monitor, Cpu, HardDrive, Wifi, Sparkles, Clock } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 
 const ComputerDetails = () => {
@@ -136,6 +137,9 @@ const ComputerDetails = () => {
           <HealthGauge score={health?.overallScore || computer.currentHealthScore || 95} />
         </div>
       </div>
+
+      {/* REMOTE POWER MANAGEMENT CARD SECTION */}
+      <RemotePowerManagement computer={computer} onStatusUpdate={fetchComputerData} />
 
       {/* AI Risk Prediction Banner */}
       {crashRisk && (
