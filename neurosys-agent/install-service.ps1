@@ -33,7 +33,7 @@ if (-not (Test-Path $PropsPath)) {
 # NeuroSys Monitoring Agent Production Configuration
 server.url=https://realtmesystemmonitoring-production.up.railway.app/api/v1
 agent.lab.name=General-Lab
-agent.collection.interval.seconds=5
+agent.collection.interval.seconds=1
 agent.cache.dir=./cache
 "@
     Set-Content -Path $PropsPath -Value $DefaultProps -Encoding UTF8

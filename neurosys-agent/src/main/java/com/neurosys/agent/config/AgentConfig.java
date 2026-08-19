@@ -138,7 +138,7 @@ public class AgentConfig {
     }
 
     public static int getIntervalSeconds() {
-        return Integer.parseInt(properties.getProperty("agent.collection.interval.seconds", "5"));
+        return Integer.parseInt(properties.getProperty("agent.collection.interval.seconds", "1"));
     }
 
     public static String getAgentId() {
