@@ -10,8 +10,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class PowerCommandHandler {
 
@@ -21,13 +23,14 @@ public class PowerCommandHandler {
 
     public PowerCommandHandler() {
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
+                .connectTimeout(Duration.ofSeconds(3))
                 .build();
         this.objectMapper = new ObjectMapper();
     }
 
     public void pollAndExecutePendingCommand() {
         try {
+            long startTime = System.currentTimeMillis();
             String url = AgentConfig.getServerUrl() + "/agent/power-commands/pending?agentId=" + AgentConfig.getAgentId();
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -46,7 +49,9 @@ public class PowerCommandHandler {
                         String commandType = (String) cmdData.get("commandType");
 
                         if (commandId != null && commandType != null) {
-                            log.info("Received remote power command: ID={}, Type={}", commandId, commandType);
+                            long elapsedMs = System.currentTimeMillis() - startTime;
+                            log.info("[PERF LOG] [AGENT] Received command {} ({}) from backend in {}ms at {}", 
+                                    commandId, commandType, elapsedMs, Instant.now());
                             executeCommand(commandId, commandType);
                         }
                     }
@@ -58,77 +63,83 @@ public class PowerCommandHandler {
     }
 
     private void executeCommand(String commandId, String commandType) {
-        // Step 1: Report EXECUTING status
-        updateStatus(commandId, "EXECUTING", null);
+        // Step 1: Report EXECUTING status asynchronously (non-blocking)
+        updateStatusAsync(commandId, "EXECUTING", null);
 
         try {
             String os = System.getProperty("os.name").toLowerCase();
             boolean isWindows = os.contains("win");
+            long startExecMs = System.currentTimeMillis();
 
             ProcessBuilder pb;
             switch (commandType.toUpperCase()) {
                 case "LOCK":
-                    log.info("Executing LOCK workstation command...");
-                    updateStatus(commandId, "SUCCESS", null);
+                    log.info("[PERF LOG] [AGENT] Executing LOCK workstation at {}", Instant.now());
                     if (isWindows) {
                         pb = new ProcessBuilder("rundll32.exe", "user32.dll,LockWorkStation");
                         pb.start();
                     } else {
                         log.warn("Lock workstation is supported natively on Windows systems.");
                     }
+                    updateStatusAsync(commandId, "SUCCESS", null);
+                    log.info("[PERF LOG] [AGENT] LOCK command process started in {}ms", System.currentTimeMillis() - startExecMs);
                     break;
 
                 case "RESTART":
-                    log.info("Executing RESTART command (5 second grace period)...");
-                    updateStatus(commandId, "SUCCESS", null);
+                    log.info("[PERF LOG] [AGENT] Executing RESTART command (Immediate /t 0) at {}", Instant.now());
                     if (isWindows) {
-                        pb = new ProcessBuilder("shutdown.exe", "/r", "/t", "5", "/f", "/c", "Remote restart requested from NeuroSys Dashboard");
+                        pb = new ProcessBuilder("shutdown.exe", "/r", "/t", "0", "/f", "/c", "Remote restart requested from NeuroSys Dashboard");
                         pb.start();
                     }
+                    updateStatusAsync(commandId, "SUCCESS", null);
+                    log.info("[PERF LOG] [AGENT] RESTART process launched in {}ms", System.currentTimeMillis() - startExecMs);
                     break;
 
                 case "SHUTDOWN":
-                    log.info("Executing SHUTDOWN command (5 second grace period)...");
-                    updateStatus(commandId, "SUCCESS", null);
+                    log.info("[PERF LOG] [AGENT] Executing SHUTDOWN command (Immediate /t 0) at {}", Instant.now());
                     if (isWindows) {
-                        pb = new ProcessBuilder("shutdown.exe", "/s", "/t", "5", "/f", "/c", "Remote shutdown requested from NeuroSys Dashboard");
+                        pb = new ProcessBuilder("shutdown.exe", "/s", "/t", "0", "/f", "/c", "Remote shutdown requested from NeuroSys Dashboard");
                         pb.start();
                     }
+                    updateStatusAsync(commandId, "SUCCESS", null);
+                    log.info("[PERF LOG] [AGENT] SHUTDOWN process launched in {}ms", System.currentTimeMillis() - startExecMs);
                     break;
 
                 default:
                     log.warn("Unknown power command type: {}", commandType);
-                    updateStatus(commandId, "FAILED", "Unsupported command type: " + commandType);
+                    updateStatusAsync(commandId, "FAILED", "Unsupported command type: " + commandType);
                     break;
             }
         } catch (Exception e) {
             log.error("Failed to execute power command {}", commandType, e);
-            updateStatus(commandId, "FAILED", e.getMessage());
+            updateStatusAsync(commandId, "FAILED", e.getMessage());
         }
     }
 
-    private void updateStatus(String commandId, String status, String failureReason) {
-        try {
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("commandId", commandId);
-            payload.put("agentId", AgentConfig.getAgentId());
-            payload.put("status", status);
-            if (failureReason != null) {
-                payload.put("failureReason", failureReason);
+    private void updateStatusAsync(String commandId, String status, String failureReason) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("commandId", commandId);
+                payload.put("agentId", AgentConfig.getAgentId());
+                payload.put("status", status);
+                if (failureReason != null) {
+                    payload.put("failureReason", failureReason);
+                }
+
+                String jsonBody = objectMapper.writeValueAsString(payload);
+                String url = AgentConfig.getServerUrl() + "/agent/power-commands/status";
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                        .build();
+
+                httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                log.info("[PERF LOG] [AGENT] Reported command {} status: {}", commandId, status);
+            } catch (Exception e) {
+                log.error("Failed to report command status to server", e);
             }
-
-            String jsonBody = objectMapper.writeValueAsString(payload);
-            String url = AgentConfig.getServerUrl() + "/agent/power-commands/status";
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                    .build();
-
-            httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            log.info("Reported command {} status: {}", commandId, status);
-        } catch (Exception e) {
-            log.error("Failed to report command status to server", e);
-        }
+        });
     }
 }

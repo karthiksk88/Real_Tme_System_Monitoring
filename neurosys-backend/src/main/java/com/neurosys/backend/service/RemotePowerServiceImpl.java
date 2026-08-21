@@ -35,6 +35,7 @@ public class RemotePowerServiceImpl implements RemotePowerService {
     @Override
     @Transactional
     public RemotePowerCommandDto issueCommand(String computerId, PowerCommandType type, String requestedBy) {
+        long startTime = System.currentTimeMillis();
         Computer computer = computerRepository.findById(computerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Computer", "id", computerId));
 
@@ -42,6 +43,8 @@ public class RemotePowerServiceImpl implements RemotePowerService {
             log.warn("Attempted remote power action on unapproved computer {}", computer.getHostname());
             throw new IllegalArgumentException("Computer endpoint is unapproved. Remote actions unavailable.");
         }
+
+        log.info("[PERF LOG] [BACKEND] Received {} request for computer {} ({}) at {}", type, computer.getHostname(), computerId, Instant.now());
 
         // Check for existing active command to prevent rapid duplicate clicks
         Optional<RemotePowerCommand> activeCmd = commandRepository
@@ -52,7 +55,7 @@ public class RemotePowerServiceImpl implements RemotePowerService {
             RemotePowerCommand existing = activeCmd.get();
             long secondsAgo = Duration.between(existing.getCreatedAt(), Instant.now()).getSeconds();
             if (secondsAgo < 15) {
-                log.info("Returning existing pending/executing command {} for computer {}", existing.getId(), computer.getHostname());
+                log.info("[PERF LOG] [BACKEND] Duplicate click suppressed — Returning existing active command {} (issued {}s ago)", existing.getId(), secondsAgo);
                 return mapToCommandDto(existing);
             }
         }
@@ -78,7 +81,9 @@ public class RemotePowerServiceImpl implements RemotePowerService {
                 .build();
         auditRepository.save(audit);
 
-        log.info("Issued {} command for computer {} ({}) by user {}", type, computer.getHostname(), computer.getId(), command.getRequestedBy());
+        long elapsedMs = System.currentTimeMillis() - startTime;
+        log.info("[PERF LOG] [BACKEND] Successfully queued {} command {} for computer {} in {}ms at {}", 
+                type, command.getId(), computer.getHostname(), elapsedMs, Instant.now());
 
         return mapToCommandDto(command);
     }
@@ -93,7 +98,8 @@ public class RemotePowerServiceImpl implements RemotePowerService {
             RemotePowerCommand command = pendingCmd.get();
             command.setStatus(PowerCommandStatus.SENT);
             commandRepository.save(command);
-            log.info("Delivered power command {} ({}) to agent {}", command.getId(), command.getCommandType(), agentId);
+            log.info("[PERF LOG] [BACKEND] Delivered pending {} command {} to agent {} at {}", 
+                    command.getCommandType(), command.getId(), agentId, Instant.now());
             return mapToCommandDto(command);
         }
         return null;
@@ -123,7 +129,7 @@ public class RemotePowerServiceImpl implements RemotePowerService {
                 .build();
         auditRepository.save(audit);
 
-        log.info("Updated power command {} status to {}", command.getId(), request.getStatus());
+        log.info("[PERF LOG] [BACKEND] Agent reported command {} status updated to {} at {}", command.getId(), request.getStatus(), Instant.now());
         return mapToCommandDto(command);
     }
 

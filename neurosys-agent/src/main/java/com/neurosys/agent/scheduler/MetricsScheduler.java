@@ -31,6 +31,7 @@ public class MetricsScheduler {
     private final MetricsSender metricsSender;
     private final PowerCommandHandler powerCommandHandler;
     private final ScheduledExecutorService scheduler;
+    private final ScheduledExecutorService powerCommandExecutor;
     private boolean isRegistered = false;
     private int cycleCounter = 0;
 
@@ -48,16 +49,28 @@ public class MetricsScheduler {
         this.metricsSender = new MetricsSender();
         this.powerCommandHandler = new PowerCommandHandler();
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
+        this.powerCommandExecutor = Executors.newSingleThreadScheduledExecutor();
     }
 
     public void start() {
-        log.info("Starting NeuroSys Monitoring Agent periodic sampling scheduler (Interval: {}s)...", AgentConfig.getIntervalSeconds());
+        log.info("Starting NeuroSys Telemetry Agent (Metrics Interval: {}s, Power Command Polling: 500ms)...", AgentConfig.getIntervalSeconds());
 
         // Perform initial registration
         attemptRegistration();
 
-        // Schedule periodic sampling
+        // Schedule periodic metrics sampling
         scheduler.scheduleAtFixedRate(this::collectAndSendMetrics, 0, AgentConfig.getIntervalSeconds(), TimeUnit.SECONDS);
+
+        // Schedule dedicated 500ms fast polling loop for remote power commands (LOCK, RESTART, SHUTDOWN)
+        powerCommandExecutor.scheduleAtFixedRate(() -> {
+            try {
+                if (isRegistered) {
+                    powerCommandHandler.pollAndExecutePendingCommand();
+                }
+            } catch (Exception e) {
+                // Catch silently during network polling
+            }
+        }, 0, 500, TimeUnit.MILLISECONDS);
     }
 
     private void attemptRegistration() {
@@ -85,9 +98,6 @@ public class MetricsScheduler {
                 attemptRegistration();
                 return;
             }
-
-            // Check for pending remote power commands (LOCK, RESTART, SHUTDOWN)
-            powerCommandHandler.pollAndExecutePendingCommand();
 
             // Check onboarding approval status from central server
             String status = metricsSender.checkApprovalStatus(AgentConfig.getAgentId());

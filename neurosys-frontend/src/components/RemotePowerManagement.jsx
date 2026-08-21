@@ -5,7 +5,7 @@ import { metricsService } from '../services/metricsService';
 const RemotePowerManagement = ({ computer, onStatusUpdate }) => {
   const [modalType, setModalType] = useState(null); // 'LOCK' | 'RESTART' | 'SHUTDOWN' | null
   const [loading, setLoading] = useState(false);
-  const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: '' }
+  const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: '', statusText: '' }
   const [audits, setAudits] = useState([]);
   const [lastCommandStatus, setLastCommandStatus] = useState(null);
 
@@ -35,11 +35,14 @@ const RemotePowerManagement = ({ computer, onStatusUpdate }) => {
 
   const handleConfirmAction = async () => {
     if (!modalType || !isOnline) return;
+    const action = modalType;
+    setModalType(null); // Close modal immediately upon confirmation
     setLoading(true);
     setFeedback(null);
 
-    const action = modalType;
-    setModalType(null); // Close modal
+    const clickIsoTime = new Date().toISOString();
+    console.log(`[PERF LOG] [FRONTEND] User confirmed ${action} action at ${clickIsoTime}`);
+    const startMs = performance.now();
 
     try {
       let res;
@@ -51,22 +54,46 @@ const RemotePowerManagement = ({ computer, onStatusUpdate }) => {
         res = await metricsService.shutdownComputer(computer.id);
       }
 
-      if (res?.success) {
-        const notificationText = action === 'LOCK' 
-          ? `🔒 Computer Locked — ${computer.hostname} lock command was sent.`
-          : action === 'RESTART'
-          ? `🔄 Restart Requested — ${computer.hostname} restart command was sent.`
-          : `⏻ Shutdown Requested — ${computer.hostname} shutdown command was sent.`;
+      const endMs = performance.now();
+      const latencyMs = Math.round(endMs - startMs);
+      console.log(`[PERF LOG] [FRONTEND] Backend acknowledged ${action} command in ${latencyMs}ms at ${new Date().toISOString()}`);
 
-        setFeedback({ type: 'success', message: notificationText });
+      if (res?.success) {
+        const headlineText = action === 'LOCK'
+          ? "Lock command sent."
+          : action === 'RESTART'
+          ? "Restart command sent."
+          : "Shutdown command sent.";
+
+        const detailText = action === 'LOCK'
+          ? `${computer.hostname} workstation is locking...`
+          : action === 'RESTART'
+          ? `${computer.hostname} is restarting...`
+          : `${computer.hostname} is shutting down...`;
+
+        setFeedback({ 
+          type: 'success', 
+          message: headlineText,
+          statusText: detailText,
+          latency: latencyMs
+        });
+        
         setLastCommandStatus({ type: action, status: res.data?.status || 'ACKNOWLEDGED' });
         fetchAudits();
         if (onStatusUpdate) onStatusUpdate();
       } else {
-        setFeedback({ type: 'error', message: `✕ Unable to send ${action.toLowerCase()} command. ${res?.message || 'Try again.'}` });
+        setFeedback({ 
+          type: 'error', 
+          message: `Unable to send ${action.toLowerCase()} command.`, 
+          statusText: res?.message || 'Try again.' 
+        });
       }
     } catch (err) {
-      setFeedback({ type: 'error', message: `✕ Unable to send ${action.toLowerCase()} command. ${err.response?.data?.message || err.message}` });
+      setFeedback({ 
+        type: 'error', 
+        message: `Unable to send ${action.toLowerCase()} command.`, 
+        statusText: err.response?.data?.message || err.message 
+      });
     } finally {
       setLoading(false);
     }
@@ -150,16 +177,28 @@ const RemotePowerManagement = ({ computer, onStatusUpdate }) => {
 
       {/* Feedback Toast Banner */}
       {feedback && (
-        <div className={`p-3.5 rounded-xl border text-xs flex items-center justify-between ${
+        <div className={`p-4 rounded-xl border text-xs space-y-1 ${
           feedback.type === 'success' 
             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
             : 'bg-red-500/10 border-red-500/30 text-red-300'
         }`}>
-          <div className="flex items-center space-x-2">
-            {feedback.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" /> : <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />}
-            <span className="font-medium">{feedback.message}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              {feedback.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" /> : <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />}
+              <strong className="text-sm font-extrabold">{feedback.message}</strong>
+            </div>
+            <button onClick={() => setFeedback(null)} className="text-slate-400 hover:text-slate-200 text-xs ml-2">✕</button>
           </div>
-          <button onClick={() => setFeedback(null)} className="text-slate-400 hover:text-slate-200 text-xs ml-2">✕</button>
+          {feedback.statusText && (
+            <p className="text-xs text-slate-300 font-medium pl-6">
+              {feedback.statusText}
+            </p>
+          )}
+          {feedback.latency && (
+            <p className="text-[10px] text-emerald-400/80 font-mono pl-6 pt-0.5">
+              ⚡ Delivered in {feedback.latency}ms
+            </p>
+          )}
         </div>
       )}
 
@@ -194,7 +233,7 @@ const RemotePowerManagement = ({ computer, onStatusUpdate }) => {
                     {new Date(audit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </span>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    audit.status === 'SUCCESS' || audit.status === 'ACKNOWLEDGED' 
+                    audit.status === 'SUCCESS' || audit.status === 'ACKNOWLEDGED' || audit.status === 'SENT' || audit.status === 'QUEUED'
                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
                       : 'bg-red-500/10 text-red-400 border border-red-500/20'
                   }`}>
