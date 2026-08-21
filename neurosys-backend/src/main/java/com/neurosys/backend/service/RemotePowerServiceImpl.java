@@ -74,6 +74,7 @@ public class RemotePowerServiceImpl implements RemotePowerService {
                 .computerId(computer.getId())
                 .action(type)
                 .status("QUEUED")
+                .timestamp(Instant.now())
                 .build();
         auditRepository.save(audit);
 
@@ -118,6 +119,7 @@ public class RemotePowerServiceImpl implements RemotePowerService {
                 .action(command.getCommandType())
                 .status(request.getStatus().name())
                 .failureReason(request.getFailureReason())
+                .timestamp(Instant.now())
                 .build();
         auditRepository.save(audit);
 

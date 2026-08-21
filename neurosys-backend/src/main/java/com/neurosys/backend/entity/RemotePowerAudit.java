@@ -33,7 +33,8 @@ public class RemotePowerAudit {
     private PowerCommandType action;
 
     @Column(name = "timestamp", nullable = false, updatable = false)
-    private Instant timestamp;
+    @Builder.Default
+    private Instant timestamp = Instant.now();
 
     @Column(name = "status", nullable = false)
     private String status;
@@ -43,6 +44,8 @@ public class RemotePowerAudit {
 
     @PrePersist
     protected void onCreate() {
-        this.timestamp = Instant.now();
+        if (this.timestamp == null) {
+            this.timestamp = Instant.now();
+        }
     }
 }
