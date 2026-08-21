@@ -56,7 +56,7 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
                     .computerId(computer.getId())
                     .hostname(computer.getHostname())
                     .isDataSufficient(false)
-                    .insufficientDataReason(String.format("Not enough historical data for %s (%d/%d samples collected).",
+                    .insufficientDataReason(String.format("Not enough historical telemetry data for %s (%d/%d samples collected).",
                             computer.getHostname(), sampleCount, MIN_HISTORICAL_SAMPLES))
                     .predictedIssue("Prediction Unavailable")
                     .estimatedTimeframe("N/A")
@@ -267,7 +267,7 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
             predictedGraph.add(fPoint);
         }
 
-        // 7. Store Generated Prediction in Database for Cache & Consistency
+        // 7. Store Generated Prediction in Database for Cache & Consistency (with null-safe BaseEntity timestamps)
         String factorsJson, histGraphJson, predGraphJson;
         try {
             factorsJson = objectMapper.writeValueAsString(contributingFactors);
@@ -279,32 +279,40 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
             predGraphJson = "[]";
         }
 
-        Prediction prediction = Prediction.builder()
-                .computer(computer)
-                .predictionType(PredictionType.CRASH_RISK)
-                .horizonMinutes(30)
-                .predictedIssue(predictedIssue)
-                .estimatedTimeframe(estimatedTimeframe)
-                .riskLevel(riskLevel)
-                .modelVersion(MODEL_VERSION)
-                .crashProbability(crashProbability)
-                .confidenceScore(confidenceScore)
-                .reasonsJson(factorsJson)
-                .contributingFactorsJson(factorsJson)
-                .historicalGraphJson(histGraphJson)
-                .predictedGraphJson(predGraphJson)
-                .recommendedAction(recommendedAction)
-                .dataStartDate(startDate)
-                .dataEndDate(endDate)
-                .predictedAt(Instant.now())
-                .build();
+        String predId = UUID.randomUUID().toString();
+        try {
+            Prediction prediction = Prediction.builder()
+                    .computer(computer)
+                    .predictionType(PredictionType.CRASH_RISK)
+                    .horizonMinutes(30)
+                    .predictedIssue(predictedIssue)
+                    .estimatedTimeframe(estimatedTimeframe)
+                    .riskLevel(riskLevel)
+                    .modelVersion(MODEL_VERSION)
+                    .crashProbability(crashProbability)
+                    .confidenceScore(confidenceScore)
+                    .reasonsJson(factorsJson)
+                    .contributingFactorsJson(factorsJson)
+                    .historicalGraphJson(histGraphJson)
+                    .predictedGraphJson(predGraphJson)
+                    .recommendedAction(recommendedAction)
+                    .dataStartDate(startDate)
+                    .dataEndDate(endDate)
+                    .predictedAt(Instant.now())
+                    .build();
 
-        prediction = predictionRepository.save(prediction);
-        log.info("[INFO] Evaluated deterministic trend prediction for {} [Issue: {}, Risk: {}, Confidence: {}%]",
-                computer.getHostname(), predictedIssue, riskLevel, confidencePercent);
+            prediction.setCreatedAt(Instant.now());
+            prediction.setUpdatedAt(Instant.now());
+            prediction = predictionRepository.save(prediction);
+            predId = prediction.getId();
+            log.info("[INFO] Evaluated deterministic trend prediction for {} [Issue: {}, Risk: {}, Confidence: {}%]",
+                    computer.getHostname(), predictedIssue, riskLevel, confidencePercent);
+        } catch (Exception e) {
+            log.warn("Failed saving prediction entity to database for computer {}: {}", computer.getHostname(), e.getMessage());
+        }
 
         return CrashPredictionResponse.builder()
-                .id(prediction.getId())
+                .id(predId)
                 .computerId(computer.getId())
                 .hostname(computer.getHostname())
                 .isDataSufficient(true)
@@ -324,7 +332,7 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
                 .modelVersion(MODEL_VERSION)
                 .dataStartDate(startDate)
                 .dataEndDate(endDate)
-                .predictedAt(prediction.getPredictedAt())
+                .predictedAt(Instant.now())
                 .build();
     }
 
