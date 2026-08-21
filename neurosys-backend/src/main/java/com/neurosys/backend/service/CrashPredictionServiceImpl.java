@@ -56,7 +56,7 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
                     .computerId(computer.getId())
                     .hostname(computer.getHostname())
                     .isDataSufficient(false)
-                    .insufficientDataReason(String.format("Not enough historical telemetry data for %s (%d/%d samples collected).",
+                    .insufficientDataReason(String.format("Not enough historical data for %s (%d/%d samples collected).",
                             computer.getHostname(), sampleCount, MIN_HISTORICAL_SAMPLES))
                     .predictedIssue("Prediction Unavailable")
                     .estimatedTimeframe("N/A")
@@ -120,7 +120,6 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
         double slopeDiskFree = (n * sumTDiskFree - sumT * sumDiskFree) / denominator;
 
         double interceptRam = (sumRam - slopeRam * sumT) / n;
-        double interceptCpu = (sumCpu - slopeCpu * sumT) / n;
 
         // Calculate Coefficient of Determination (R^2) for statistical confidence
         double meanRam = sumRam / n;
@@ -340,7 +339,8 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
     @Transactional(readOnly = true)
     public CrashPredictionResponse getLatestCrashPrediction(String computerId) {
         try {
-            Optional<Prediction> cached = predictionRepository.findLatestByComputerIdAndType(computerId, PredictionType.CRASH_RISK);
+            Optional<Prediction> cached = predictionRepository.findFirstByComputerIdAndPredictionTypeOrderByPredictedAtDesc(
+                    computerId, PredictionType.CRASH_RISK);
 
             if (cached.isPresent()) {
                 Prediction p = cached.get();
