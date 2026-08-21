@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { metricsService } from '../services/metricsService';
-import { Sparkles, Monitor, AlertTriangle, ShieldCheck, Activity, TrendingUp, Info } from 'lucide-react';
+import { Sparkles, Monitor, AlertTriangle, ShieldCheck, Activity, TrendingUp, Info, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 
 const Analytics = () => {
@@ -42,83 +42,54 @@ const Analytics = () => {
     if (comp) setSelectedComputer(comp);
 
     try {
-      // 1. Fetch real historical metrics from MySQL
-      const histRes = await metricsService.getMetricHistory(compId, 30);
-      const histList = histRes?.data || (Array.isArray(histRes) ? histRes : []);
-
-      // 2. Fetch AI Prediction
+      // Fetch Real AI Prediction calculated from database telemetry
       const predRes = await metricsService.getCrashPrediction(compId);
       const predData = predRes?.data || predRes;
-      if (predData) setPredictionData(predData);
 
-      // Build Combined Chart Data: 30 Past Days (Actual) + 60 Future Days (Predicted Trend)
-      const combined = [];
-      const now = new Date();
+      if (predData) {
+        setPredictionData(predData);
 
-      // Historical actual data (Solid line)
-      if (Array.isArray(histList) && histList.length > 0) {
-        histList.slice().reverse().forEach((m, idx) => {
-          const pastDate = new Date(now.getTime() - (30 - idx) * 24 * 60 * 60 * 1000);
-          combined.push({
-            date: pastDate.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-            actualScore: Math.round(m.cpuUsagePercent || 45),
-            predictedScore: null,
-            isPrediction: false
-          });
-        });
-      } else {
-        for (let i = 30; i >= 1; i--) {
-          const pastDate = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-          combined.push({
-            date: pastDate.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-            actualScore: Math.min(85, Math.max(30, 45 + Math.sin(i / 3) * 15)),
-            predictedScore: null,
-            isPrediction: false
+        // Combine Actual Historical Points + Model Extrapolated Prediction Points
+        const combined = [];
+        const histData = predData.historicalData || [];
+        const futData = predData.predictedData || [];
+
+        // 1. Actual Historical telemetry (Solid line)
+        if (Array.isArray(histData) && histData.length > 0) {
+          histData.forEach((pt) => {
+            combined.push({
+              date: pt.date,
+              actualScore: pt.actualScore != null ? pt.actualScore : pt.predictedScore,
+              predictedScore: pt.predictedScore != null ? pt.predictedScore : null,
+              isPrediction: false
+            });
           });
         }
+
+        // 2. Projected Future Trend points (Dashed line)
+        if (Array.isArray(futData) && futData.length > 0) {
+          futData.forEach((pt) => {
+            combined.push({
+              date: pt.date,
+              actualScore: null,
+              predictedScore: pt.predictedScore,
+              isPrediction: true
+            });
+          });
+        }
+
+        setTrendChartData(combined);
       }
-
-      // Add Today transition point
-      const todayStr = 'Today';
-      const lastActual = combined[combined.length - 1]?.actualScore || 50;
-      combined[combined.length - 1].date = todayStr;
-      combined[combined.length - 1].predictedScore = lastActual;
-
-      // Future predicted trend (Dashed line)
-      const prob = predData?.crashProbability != null ? predData.crashProbability : 0.05;
-      const baseTrend = prob > 0.40 ? 1.4 : 0.2;
-      for (let i = 1; i <= 6; i++) {
-        const projectedValue = Math.min(98, Math.round(lastActual + i * baseTrend * 6));
-        combined.push({
-          date: `+${i * 10}d`,
-          actualScore: null,
-          predictedScore: projectedValue,
-          isPrediction: true
-        });
-      }
-
-      setTrendChartData(combined);
     } catch (e) {
       console.error('Failed to load computer prediction', e);
     }
   };
 
-  const riskPercent =
-    predictionData?.crashProbability != null
-      ? Math.round(predictionData.crashProbability * 100)
-      : null;
-
-  const confidencePercent =
-    predictionData?.confidenceScore != null
-      ? Math.round(predictionData.confidenceScore * 100)
-      : 82;
-
-  const isInsufficient =
-    predictionData?.riskLevel === 'UNKNOWN' ||
-    (predictionData?.mainFactors &&
-      predictionData.mainFactors.some((f) => f.toLowerCase().includes('insufficient')));
-
-  const mainFactors = predictionData?.mainFactors || [];
+  const isSufficient = predictionData?.isDataSufficient ?? false;
+  const riskLevel = predictionData?.riskLevel || 'UNKNOWN';
+  const confidencePercent = predictionData?.confidencePercent ?? Math.round((predictionData?.confidenceScore || 0) * 100);
+  const contributingFactors = predictionData?.contributingFactors || predictionData?.reasons || [];
+  const modelVersion = predictionData?.modelVersion || 'NeuroSys Trend Model v1.0';
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -129,7 +100,9 @@ const Analytics = () => {
             <Sparkles className="w-7 h-7 text-cyan-400" />
             AI Intelligence & System Predictions
           </h2>
-          <p className="text-xs text-slate-400">System-level performance degradation forecasting and risk analytics</p>
+          <p className="text-xs text-slate-400">
+            Linear regression trend forecasting & degradation modeling powered by <code className="text-cyan-400 font-mono">{modelVersion}</code>
+          </p>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -159,59 +132,82 @@ const Analytics = () => {
                 </span>
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
-                    isInsufficient
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      : (riskPercent || 0) > 60
+                    !isSufficient
+                      ? 'bg-slate-800 text-slate-400 border border-slate-700'
+                      : riskLevel === 'HIGH'
                       ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      : riskLevel === 'MEDIUM'
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                       : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                   }`}
                 >
-                  {predictionData?.riskLevel || 'LOW'} RISK
+                  {!isSufficient ? 'PENDING DATA' : `${riskLevel} RISK`}
                 </span>
               </div>
+
               <h3 className="text-3xl font-black text-slate-100">
-                {predictionData?.predictedIssue || 'Optimal System Performance'}
+                {predictionData?.predictedIssue || 'Evaluating Telemetry Trends...'}
               </h3>
+
               <p className="text-xs text-slate-400 max-w-xl">
                 Estimated timeframe:{' '}
-                <strong className="text-slate-200">{predictionData?.estimatedTimeframe || 'N/A'}</strong> • Confidence:{' '}
-                <strong className="text-cyan-400">{confidencePercent}%</strong>
+                <strong className="text-slate-200">{predictionData?.estimatedTimeframe || 'N/A'}</strong>
+                {' • '}
+                Confidence:{' '}
+                <strong className="text-cyan-400">{isSufficient ? `${confidencePercent}%` : 'Not available'}</strong>
               </p>
             </div>
 
-            {/* Risk Gauge Badge */}
-            <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-center space-y-1 min-w-[140px]">
+            {/* Statistical Confidence / Data Sufficiency Gauge */}
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-center space-y-1 min-w-[150px]">
               <span className="text-3xl font-black text-cyan-400">
-                {isInsufficient ? '—' : `${riskPercent || 5}%`}
+                {!isSufficient ? '—' : `${confidencePercent}%`}
               </span>
-              <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Degradation Risk</span>
+              <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                {!isSufficient ? 'Data Pending' : 'Model Confidence'}
+              </span>
             </div>
           </div>
 
-          {/* Dynamic Contributing Factors */}
+          {/* Dynamic Supporting Contributing Factors */}
           <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
             <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5 text-cyan-400" /> Supporting Contributing Factors
+              <Info className="w-3.5 h-3.5 text-cyan-400" /> Supporting Contributing Factors (Real Telemetry Trends)
             </h4>
 
-            {isInsufficient ? (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold">
-                Insufficient historical data for reliable prediction.
+            {!isSufficient ? (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                <span>
+                  {predictionData?.insufficientDataReason ||
+                    'Not enough historical telemetry for this computer. Minimum 10 historical samples required.'}
+                </span>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                {mainFactors.map((factor, idx) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                {contributingFactors.map((factor, idx) => (
                   <div
                     key={idx}
-                    className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 flex items-center gap-2"
+                    className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 flex items-start gap-2"
                   >
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 flex-shrink-0" />
-                    <span className="truncate">{factor}</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0 mt-1.5" />
+                    <span>{factor}</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
+
+          {/* Actionable Advice */}
+          {predictionData?.recommendedAction && isSufficient && (
+            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-200 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-cyan-300 block">Recommended Action:</strong>
+                <span>{predictionData.recommendedAction}</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -221,9 +217,11 @@ const Analytics = () => {
           <div>
             <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-cyan-400" />
-              Historical Performance vs Predicted System Trend
+              Real Telemetry History vs Linear Regression Predicted Trend
             </h3>
-            <p className="text-xs text-slate-400">Solid line = Actual 30-Day Historical Data | Dashed line = Predicted 60-Day Future Trend</p>
+            <p className="text-xs text-slate-400">
+              Solid line = Actual Telemetry History from PostgreSQL | Dashed line = Model Trend Extrapolation
+            </p>
           </div>
         </div>
 

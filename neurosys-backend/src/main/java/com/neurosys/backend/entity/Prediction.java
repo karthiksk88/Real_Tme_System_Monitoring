@@ -30,6 +30,18 @@ public class Prediction extends BaseEntity {
     @Column(name = "horizon_minutes")
     private Integer horizonMinutes;
 
+    @Column(name = "predicted_issue")
+    private String predictedIssue;
+
+    @Column(name = "estimated_timeframe")
+    private String estimatedTimeframe;
+
+    @Column(name = "risk_level")
+    private String riskLevel;
+
+    @Column(name = "model_version")
+    private String modelVersion;
+
     @Column(name = "predicted_cpu")
     private Double predictedCpu;
 
@@ -48,8 +60,23 @@ public class Prediction extends BaseEntity {
     @Column(name = "reasons_json", columnDefinition = "TEXT")
     private String reasonsJson;
 
+    @Column(name = "contributing_factors_json", columnDefinition = "TEXT")
+    private String contributingFactorsJson;
+
+    @Column(name = "historical_graph_json", columnDefinition = "TEXT")
+    private String historicalGraphJson;
+
+    @Column(name = "predicted_graph_json", columnDefinition = "TEXT")
+    private String predictedGraphJson;
+
     @Column(name = "recommended_action", columnDefinition = "TEXT")
     private String recommendedAction;
+
+    @Column(name = "data_start_date")
+    private Instant dataStartDate;
+
+    @Column(name = "data_end_date")
+    private Instant dataEndDate;
 
     @Column(name = "predicted_at")
     @Builder.Default

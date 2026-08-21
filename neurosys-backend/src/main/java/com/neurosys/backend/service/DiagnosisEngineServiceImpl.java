@@ -27,6 +27,7 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
     private final SystemMetricRepository systemMetricRepository;
     private final DiagnosticEventRepository diagnosticEventRepository;
     private final DiagnosticIncidentRepository diagnosticIncidentRepository;
+    private final CrashPredictionService crashPredictionService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -161,88 +162,33 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
     @Override
     @Transactional(readOnly = true)
     public AIPredictionDto evaluatePrediction(String computerId) {
-        Computer computer = computerRepository.findById(computerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Computer", "id", computerId));
+        CrashPredictionResponse resp = crashPredictionService.getLatestCrashPrediction(computerId);
 
-        List<SystemMetric> history = systemMetricRepository.findByComputerIdOrderByRecordedAtDesc(computerId, PageRequest.of(0, 50));
-
-        // Data Sufficiency Rule: Require at least 5 telemetry samples
-        if (history == null || history.size() < 5) {
-            return AIPredictionDto.builder()
-                    .computerId(computer.getId())
-                    .hostname(computer.getHostname())
-                    .isDataSufficient(false)
-                    .insufficientDataReason("Not enough historical data yet — Minimum 5 telemetry samples required for trend forecasting.")
-                    .predictedIssue("Insufficient Historical Data")
-                    .estimatedTimeframe("N/A")
-                    .confidencePercent(0)
-                    .category("UNKNOWN")
-                    .reason("Telemetry collection recently started.")
-                    .recommendedAction("Continue collecting telemetry data to enable trend predictions.")
-                    .evaluatedAt(Instant.now())
-                    .build();
+        String category = "PERFORMANCE";
+        if (resp.getPredictedIssue() != null) {
+            String lower = resp.getPredictedIssue().toLowerCase();
+            if (lower.contains("storage") || lower.contains("disk")) category = "STORAGE";
+            else if (lower.contains("memory") || lower.contains("ram")) category = "MEMORY";
+            else if (lower.contains("cpu") || lower.contains("processor")) category = "CPU";
+            else if (lower.contains("instability") || lower.contains("crash")) category = "STABILITY";
         }
 
-        // Trend calculation
-        SystemMetric latest = history.get(0);
-        SystemMetric oldest = history.get(history.size() - 1);
+        String reason = (resp.getContributingFactors() != null && !resp.getContributingFactors().isEmpty())
+                ? resp.getContributingFactors().get(0)
+                : "System telemetry trends demonstrate stable CPU, RAM, and Disk resource usage.";
 
-        double diskLatest = latest.getDiskUsagePercent() != null ? latest.getDiskUsagePercent() : 0.0;
-        double diskOldest = oldest.getDiskUsagePercent() != null ? oldest.getDiskUsagePercent() : 0.0;
-        double diskDelta = diskLatest - diskOldest;
-
-        double ramLatest = latest.getMemoryUsagePercent() != null ? latest.getMemoryUsagePercent() : 0.0;
-        double ramOldest = oldest.getMemoryUsagePercent() != null ? oldest.getMemoryUsagePercent() : 0.0;
-        double ramDelta = ramLatest - ramOldest;
-
-        // Prediction 1: Storage Problem
-        if (diskLatest >= 85.0 || diskDelta > 3.0) {
-            int estDays = diskLatest >= 92.0 ? 3 : (diskLatest >= 88.0 ? 7 : 14);
-            int confidence = Math.min(96, 80 + (int)(diskLatest * 0.15));
-            return AIPredictionDto.builder()
-                    .computerId(computer.getId())
-                    .hostname(computer.getHostname())
-                    .isDataSufficient(true)
-                    .predictedIssue("Storage may run out soon")
-                    .estimatedTimeframe("~" + estDays + " days")
-                    .confidencePercent(confidence)
-                    .category("STORAGE")
-                    .reason("Free storage space has been continuously decreasing over recent samples.")
-                    .recommendedAction("Clean up temporary files and remove unnecessary applications to preserve disk space.")
-                    .evaluatedAt(Instant.now())
-                    .build();
-        }
-
-        // Prediction 2: Memory-related performance degradation
-        if (ramLatest >= 80.0 || ramDelta > 5.0) {
-            int estDays = ramLatest >= 90.0 ? 2 : 12;
-            int confidence = Math.min(92, 75 + (int)(ramLatest * 0.15));
-            return AIPredictionDto.builder()
-                    .computerId(computer.getId())
-                    .hostname(computer.getHostname())
-                    .isDataSufficient(true)
-                    .predictedIssue("Memory performance degradation risk")
-                    .estimatedTimeframe("~" + estDays + " days")
-                    .confidencePercent(confidence)
-                    .category("MEMORY")
-                    .reason("RAM allocation has increased continuously over historical monitoring.")
-                    .recommendedAction("Monitor memory-heavy applications and restart long-running services.")
-                    .evaluatedAt(Instant.now())
-                    .build();
-        }
-
-        // Default Optimal Prediction
         return AIPredictionDto.builder()
-                .computerId(computer.getId())
-                .hostname(computer.getHostname())
-                .isDataSufficient(true)
-                .predictedIssue("Optimal System Performance")
-                .estimatedTimeframe("No issue predicted within 6 months")
-                .confidencePercent(95)
-                .category("PERFORMANCE")
-                .reason("System telemetry trends demonstrate stable CPU, RAM, and Disk resource usage.")
-                .recommendedAction("Maintain standard operational monitoring.")
-                .evaluatedAt(Instant.now())
+                .computerId(resp.getComputerId())
+                .hostname(resp.getHostname())
+                .isDataSufficient(resp.isDataSufficient())
+                .insufficientDataReason(resp.getInsufficientDataReason())
+                .predictedIssue(resp.getPredictedIssue())
+                .estimatedTimeframe(resp.getEstimatedTimeframe())
+                .confidencePercent(resp.getConfidencePercent() != null ? resp.getConfidencePercent() : 85)
+                .category(category)
+                .reason(reason)
+                .recommendedAction(resp.getRecommendedAction())
+                .evaluatedAt(resp.getPredictedAt() != null ? resp.getPredictedAt() : Instant.now())
                 .build();
     }
 
@@ -274,7 +220,6 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
             diagnosticEventRepository.save(event);
         }
 
-        // Re-evaluate incidents after receiving events
         processMetricsForIncidents(computer.getId());
     }
 
@@ -289,12 +234,10 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
                     .findFirstByComputerIdAndCategoryAndIncidentStatus(computerId, cat, IncidentStatus.ACTIVE);
 
             if (activeInc.isPresent()) {
-                // Deduplication: Update lastSeenAt on existing incident
                 DiagnosticIncident inc = activeInc.get();
                 inc.setLastSeenAt(Instant.now());
                 diagnosticIncidentRepository.save(inc);
             } else {
-                // New Diagnostic Incident Record
                 String evidenceJson;
                 try {
                     evidenceJson = objectMapper.writeValueAsString(report.getEvidence());
@@ -328,7 +271,6 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
                 diagnosticIncidentRepository.save(newInc);
             }
         } else {
-            // Resolve active diagnostic incidents when metrics return to normal
             List<DiagnosticIncident> activeList = diagnosticIncidentRepository.findByComputerIdAndIncidentStatus(computerId, IncidentStatus.ACTIVE);
             for (DiagnosticIncident inc : activeList) {
                 inc.setIncidentStatus(IncidentStatus.RESOLVED);
