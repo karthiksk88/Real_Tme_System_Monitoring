@@ -269,6 +269,7 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
                     .category(cat)
                     .message(dto.getMessage())
                     .occurredAt(dto.getOccurredAt() != null ? dto.getOccurredAt() : Instant.now())
+                    .createdAt(Instant.now())
                     .build();
 
             diagnosticEventRepository.save(event);
