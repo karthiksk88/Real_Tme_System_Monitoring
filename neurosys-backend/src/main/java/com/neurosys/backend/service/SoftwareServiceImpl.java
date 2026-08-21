@@ -116,18 +116,14 @@ public class SoftwareServiceImpl implements SoftwareService {
                             && !n.startsWith("+") && !n.startsWith("at line:");
                     })
                     .map(dto -> {
-                        String name = dto.getName().trim();
-                        if (name.length() > 190) name = name.substring(0, 190);
-                        String version = dto.getVersion() != null ? dto.getVersion().trim() : "";
-                        if (version.length() > 90) version = version.substring(0, 90);
-                        String publisher = dto.getPublisher() != null ? dto.getPublisher().trim() : "";
-                        if (publisher.length() > 140) publisher = publisher.substring(0, 140);
-                        String installDate = dto.getInstallDate() != null ? dto.getInstallDate().trim() : "";
-                        if (installDate.length() > 40) installDate = installDate.substring(0, 40);
+                        String name = sanitizeString(dto.getName(), 190);
+                        String version = sanitizeString(dto.getVersion(), 90);
+                        String publisher = sanitizeString(dto.getPublisher(), 140);
+                        String installDate = sanitizeString(dto.getInstallDate(), 40);
 
                         SoftwareInventory entity = SoftwareInventory.builder()
                                 .computer(computer)
-                                .name(name)
+                                .name(name.isEmpty() ? "Unknown Software" : name)
                                 .version(version)
                                 .publisher(publisher)
                                 .installDate(installDate)
@@ -142,6 +138,16 @@ public class SoftwareServiceImpl implements SoftwareService {
 
             softwareInventoryRepository.saveAll(entities);
         }
+    }
+
+    private String sanitizeString(String input, int maxLength) {
+        if (input == null) return "";
+        // Replace corrupted control characters and unprintable non-ASCII bytes safely
+        String cleaned = input.replaceAll("[^\\x20-\\x7E]", "").trim();
+        if (cleaned.length() > maxLength) {
+            cleaned = cleaned.substring(0, maxLength);
+        }
+        return cleaned;
     }
 
     @Override
