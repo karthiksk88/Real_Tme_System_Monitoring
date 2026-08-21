@@ -31,6 +31,12 @@ public class Alert extends BaseEntity {
     @Column(name = "message", nullable = false, columnDefinition = "TEXT")
     private String message;
 
+    @Column(name = "recommended_action", columnDefinition = "TEXT")
+    private String recommendedAction;
+
+    @Column(name = "evidence_json", columnDefinition = "TEXT")
+    private String evidenceJson;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "severity", nullable = false, length = 50)
     private AlertSeverity severity;
@@ -49,6 +55,18 @@ public class Alert extends BaseEntity {
 
     @Column(name = "threshold_value")
     private Double thresholdValue;
+
+    @Column(name = "occurrence_count")
+    @Builder.Default
+    private Integer occurrenceCount = 1;
+
+    @Column(name = "first_detected_at")
+    @Builder.Default
+    private Instant firstDetectedAt = Instant.now();
+
+    @Column(name = "last_detected_at")
+    @Builder.Default
+    private Instant lastDetectedAt = Instant.now();
 
     @Column(name = "triggered_at")
     @Builder.Default

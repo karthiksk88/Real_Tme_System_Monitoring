@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 
 @Data
 @Builder
@@ -17,11 +18,16 @@ public class AlertDto {
     private String hostname;
     private String title;
     private String message;
+    private String recommendedAction;
+    private List<String> evidence;
     private String severity;
     private String alertType;
     private String status;
     private Double triggeredValue;
     private Double thresholdValue;
+    private Integer occurrenceCount;
+    private Instant firstDetectedAt;
+    private Instant lastDetectedAt;
     private Instant triggeredAt;
     private Instant resolvedAt;
 }

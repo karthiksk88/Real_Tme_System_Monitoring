@@ -27,7 +27,6 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
     private final SystemMetricRepository systemMetricRepository;
     private final DiagnosticEventRepository diagnosticEventRepository;
     private final DiagnosticIncidentRepository diagnosticIncidentRepository;
-    private final AlertRepository alertRepository;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -79,19 +78,19 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
             }
         }
 
-        // Rule C: High Memory Exhaustion (LIKELY)
-        if (history != null && history.size() >= 3) {
+        // Rule C: High Memory Exhaustion (LIKELY) - Sustained across history
+        if (history != null && history.size() >= 5) {
             SystemMetric latest = history.get(0);
             double ramPercent = latest.getMemoryUsagePercent() != null ? latest.getMemoryUsagePercent() : 0.0;
             double freeRamMb = latest.getMemoryFreeMb() != null ? latest.getMemoryFreeMb() : 4096.0;
 
             long highRamCount = history.stream()
-                    .filter(m -> m.getMemoryUsagePercent() != null && m.getMemoryUsagePercent() >= 88.0)
+                    .filter(m -> m.getMemoryUsagePercent() != null && m.getMemoryUsagePercent() >= 90.0)
                     .count();
 
-            if (ramPercent >= 90.0 || (highRamCount >= 3 && freeRamMb < 800)) {
+            if (ramPercent >= 90.0 && highRamCount >= 4) {
                 List<String> evidence = List.of(
-                        String.format("RAM usage stayed above 90%% (currently %.1f%%).", ramPercent),
+                        String.format("RAM usage stayed above 90%% in %d out of last %d samples (currently %.1f%%).", highRamCount, history.size(), ramPercent),
                         String.format("Available memory is dangerously low (%.0f MB free).", freeRamMb),
                         "Multiple memory-intensive background processes are active."
                 );
@@ -290,12 +289,12 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
                     .findFirstByComputerIdAndCategoryAndIncidentStatus(computerId, cat, IncidentStatus.ACTIVE);
 
             if (activeInc.isPresent()) {
-                // Deduplication: Update lastSeenAt on existing incident, do NOT duplicate notification
+                // Deduplication: Update lastSeenAt on existing incident
                 DiagnosticIncident inc = activeInc.get();
                 inc.setLastSeenAt(Instant.now());
                 diagnosticIncidentRepository.save(inc);
             } else {
-                // New Incident: Create incident and send ONE notification
+                // New Diagnostic Incident Record
                 String evidenceJson;
                 try {
                     evidenceJson = objectMapper.writeValueAsString(report.getEvidence());
@@ -327,45 +326,14 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
                         .build();
 
                 diagnosticIncidentRepository.save(newInc);
-
-                // Publish single alert notification with BaseEntity timestamps
-                Alert alert = Alert.builder()
-                        .computer(computerRepository.findById(computerId).orElse(null))
-                        .title(report.getProblemDetected())
-                        .message("Reason: " + report.getExactReason() + " [Status: " + report.getConfirmationStatus() + "]")
-                        .severity(report.getConfirmationStatus().equals("CONFIRMED") ? AlertSeverity.CRITICAL : AlertSeverity.WARNING)
-                        .alertType(AlertType.AI_PREDICTION)
-                        .status(AlertStatus.OPEN)
-                        .triggeredAt(Instant.now())
-                        .build();
-                alert.setCreatedAt(Instant.now());
-                alert.setUpdatedAt(Instant.now());
-                alertRepository.save(alert);
             }
         } else {
-            // Check if any ACTIVE incidents exist that are now RESOLVED
+            // Resolve active diagnostic incidents when metrics return to normal
             List<DiagnosticIncident> activeList = diagnosticIncidentRepository.findByComputerIdAndIncidentStatus(computerId, IncidentStatus.ACTIVE);
             for (DiagnosticIncident inc : activeList) {
                 inc.setIncidentStatus(IncidentStatus.RESOLVED);
                 inc.setResolvedAt(Instant.now());
                 diagnosticIncidentRepository.save(inc);
-
-                long durationMinutes = Duration.between(inc.getDetectedAt(), inc.getResolvedAt()).toMinutes();
-                if (durationMinutes < 1) durationMinutes = 1;
-
-                Alert resolutionAlert = Alert.builder()
-                        .computer(computerRepository.findById(computerId).orElse(null))
-                        .title("🟢 RESOLVED — " + inc.getProblemTitle())
-                        .message("Problem resolved. Metrics returned to normal parameters. Incident duration: " + durationMinutes + " minutes.")
-                        .severity(AlertSeverity.INFO)
-                        .alertType(AlertType.AI_PREDICTION)
-                        .status(AlertStatus.RESOLVED)
-                        .triggeredAt(Instant.now())
-                        .resolvedAt(Instant.now())
-                        .build();
-                resolutionAlert.setCreatedAt(Instant.now());
-                resolutionAlert.setUpdatedAt(Instant.now());
-                alertRepository.save(resolutionAlert);
             }
         }
     }
@@ -406,8 +374,8 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
     }
 
     private AIDiagnosisReportDto buildDiagnosisDto(Computer computer, String problem, String reason, List<String> evidence,
-                                                    String solution, String status, List<PossibleCauseDto> possibleCauses,
-                                                    Instant detectedAt, boolean isActive) {
+                                                     String solution, String status, List<PossibleCauseDto> possibleCauses,
+                                                     Instant detectedAt, boolean isActive) {
         return AIDiagnosisReportDto.builder()
                 .computerId(computer.getId())
                 .hostname(computer.getHostname())

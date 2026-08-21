@@ -12,5 +12,6 @@ public enum AlertType {
     NO_INTERNET,
     THRESHOLD,
     ANOMALY,
-    AI_PREDICTION
+    AI_PREDICTION,
+    HIGH_RISK
 }
