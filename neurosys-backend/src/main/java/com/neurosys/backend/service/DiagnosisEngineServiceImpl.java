@@ -327,7 +327,7 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
 
                 diagnosticIncidentRepository.save(newInc);
 
-                // Publish single alert notification
+                // Publish single alert notification with BaseEntity timestamps
                 Alert alert = Alert.builder()
                         .computer(computerRepository.findById(computerId).orElse(null))
                         .title(report.getProblemDetected())
@@ -337,6 +337,8 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
                         .status(AlertStatus.OPEN)
                         .triggeredAt(Instant.now())
                         .build();
+                alert.setCreatedAt(Instant.now());
+                alert.setUpdatedAt(Instant.now());
                 alertRepository.save(alert);
             }
         } else {
@@ -360,6 +362,8 @@ public class DiagnosisEngineServiceImpl implements DiagnosisEngineService {
                         .triggeredAt(Instant.now())
                         .resolvedAt(Instant.now())
                         .build();
+                resolutionAlert.setCreatedAt(Instant.now());
+                resolutionAlert.setUpdatedAt(Instant.now());
                 alertRepository.save(resolutionAlert);
             }
         }
