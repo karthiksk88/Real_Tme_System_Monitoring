@@ -24,45 +24,73 @@ public class AgentRegistrationServiceImpl implements AgentRegistrationService {
     @Override
     @Transactional
     public AgentRegistrationResponse registerAgent(AgentRegistrationRequest request) {
-        log.info("Processing agent registration request for MAC: {}, Hostname: {}", request.getMacAddress(), request.getHostname());
+        log.info("[INFO] Agent registration request received from AgentID: {}, Hostname: {}, MAC: {}", 
+                request.getAgentId(), request.getHostname(), request.getMacAddress());
 
-        Optional<Computer> existingByMac = computerRepository.findByMacAddress(request.getMacAddress());
+        // 1. First look up by persistent Agent ID
         Optional<Computer> existingByAgentId = computerRepository.findByAgentId(request.getAgentId());
+        // 2. Fallback lookup by MAC Address
+        Optional<Computer> existingByMac = request.getMacAddress() != null && !request.getMacAddress().isEmpty() 
+                ? computerRepository.findByMacAddress(request.getMacAddress()) 
+                : Optional.empty();
 
         Computer computer;
-        if (existingByMac.isPresent()) {
+        if (existingByAgentId.isPresent()) {
+            computer = existingByAgentId.get();
+            ComputerStatus oldStatus = computer.getStatus();
+            log.info("[INFO] Existing agent recognized: {} (Hostname: {})", computer.getAgentId(), computer.getHostname());
+            
+            computer.setHostname(request.getHostname());
+            computer.setComputerName(request.getComputerName() != null ? request.getComputerName() : request.getHostname());
+            computer.setIpAddress(request.getIpAddress());
+            if (request.getMacAddress() != null && !request.getMacAddress().isEmpty()) {
+                computer.setMacAddress(request.getMacAddress());
+            }
+            computer.setOsName(request.getOsName());
+            computer.setOsVersion(request.getOsVersion());
+            if (request.getCpuModel() != null) computer.setCpuModel(request.getCpuModel());
+            if (request.getTotalRamMb() != null) computer.setTotalRamMb(request.getTotalRamMb());
+            if (request.getAgentVersion() != null) computer.setAgentVersion(request.getAgentVersion());
+            
+            // Retain lab assignment if already assigned
+            if (computer.getLabName() == null || computer.getLabName().isEmpty()) {
+                computer.setLabName(request.getLabName() != null ? request.getLabName() : "General Lab");
+            }
+            
+            // Retain approval state if already approved/active
+            if (computer.getStatus() == ComputerStatus.OFFLINE || computer.getStatus() == ComputerStatus.UNKNOWN) {
+                computer.setStatus(ComputerStatus.ONLINE);
+                log.info("[INFO] PC {} status changed {} → ONLINE", computer.getHostname(), oldStatus);
+            }
+            computer.setLastSeenAt(Instant.now());
+
+        } else if (existingByMac.isPresent()) {
             computer = existingByMac.get();
-            log.info("Updating existing computer record found by MAC: {}", request.getMacAddress());
+            ComputerStatus oldStatus = computer.getStatus();
+            log.info("[INFO] Existing computer recognized by MAC {}: Updating AgentID to {}", request.getMacAddress(), request.getAgentId());
+            
             computer.setAgentId(request.getAgentId());
             computer.setHostname(request.getHostname());
-            computer.setComputerName(request.getComputerName());
+            computer.setComputerName(request.getComputerName() != null ? request.getComputerName() : request.getHostname());
             computer.setIpAddress(request.getIpAddress());
             computer.setOsName(request.getOsName());
             computer.setOsVersion(request.getOsVersion());
-            computer.setLabName(request.getLabName());
-            computer.setCpuModel(request.getCpuModel());
-            computer.setTotalRamMb(request.getTotalRamMb());
-            computer.setAgentVersion(request.getAgentVersion());
-            if (computer.getStatus() != ComputerStatus.PENDING && computer.getStatus() != ComputerStatus.REJECTED) {
+            if (request.getCpuModel() != null) computer.setCpuModel(request.getCpuModel());
+            if (request.getTotalRamMb() != null) computer.setTotalRamMb(request.getTotalRamMb());
+            if (request.getAgentVersion() != null) computer.setAgentVersion(request.getAgentVersion());
+
+            if (computer.getStatus() == ComputerStatus.OFFLINE || computer.getStatus() == ComputerStatus.UNKNOWN) {
                 computer.setStatus(ComputerStatus.ONLINE);
+                log.info("[INFO] PC {} status changed {} → ONLINE", computer.getHostname(), oldStatus);
             }
             computer.setLastSeenAt(Instant.now());
-        } else if (existingByAgentId.isPresent()) {
-            computer = existingByAgentId.get();
-            log.info("Updating existing computer record found by Agent ID: {}", request.getAgentId());
-            computer.setHostname(request.getHostname());
-            computer.setIpAddress(request.getIpAddress());
-            computer.setMacAddress(request.getMacAddress());
-            if (computer.getStatus() != ComputerStatus.PENDING && computer.getStatus() != ComputerStatus.REJECTED) {
-                computer.setStatus(ComputerStatus.ONLINE);
-            }
-            computer.setLastSeenAt(Instant.now());
+
         } else {
-            log.info("Creating new computer record for Agent ID: {} with ONLINE status", request.getAgentId());
+            log.info("[INFO] New agent registered: AGENT-{} (Hostname: {})", request.getAgentId(), request.getHostname());
             computer = Computer.builder()
                     .agentId(request.getAgentId())
                     .hostname(request.getHostname())
-                    .computerName(request.getComputerName())
+                    .computerName(request.getComputerName() != null ? request.getComputerName() : request.getHostname())
                     .ipAddress(request.getIpAddress())
                     .macAddress(request.getMacAddress())
                     .osName(request.getOsName())
@@ -74,6 +102,7 @@ public class AgentRegistrationServiceImpl implements AgentRegistrationService {
                     .status(ComputerStatus.ONLINE)
                     .lastSeenAt(Instant.now())
                     .build();
+            log.info("[INFO] PC {} status set to ONLINE", computer.getHostname());
         }
 
         computer = computerRepository.save(computer);

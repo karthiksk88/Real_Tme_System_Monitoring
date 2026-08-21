@@ -7,7 +7,6 @@ import com.neurosys.backend.dto.response.SystemMetricDto;
 import com.neurosys.backend.entity.Computer;
 import com.neurosys.backend.entity.SystemMetric;
 import com.neurosys.backend.enums.ComputerStatus;
-import com.neurosys.backend.exception.ResourceNotFoundException;
 import com.neurosys.backend.repository.ComputerRepository;
 import com.neurosys.backend.repository.SystemMetricRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -35,8 +35,25 @@ public class SystemMetricsServiceImpl implements SystemMetricsService {
     @Override
     @Transactional
     public SystemMetricDto ingestMetrics(SystemMetricsIngestionRequest request) {
-        Computer computer = computerRepository.findByAgentId(request.getAgentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Computer Agent", "agentId", request.getAgentId()));
+        Optional<Computer> compOpt = computerRepository.findByAgentId(request.getAgentId());
+        
+        Computer computer;
+        if (compOpt.isPresent()) {
+            computer = compOpt.get();
+        } else {
+            // Auto-heal / Auto-register computer if record missing on server restart
+            log.info("[INFO] Auto-registering computer for incoming agent heartbeat: AgentID={}", request.getAgentId());
+            computer = Computer.builder()
+                    .agentId(request.getAgentId())
+                    .hostname("PC-" + request.getAgentId().replaceAll("[^A-Za-z0-9]", ""))
+                    .computerName("PC-" + request.getAgentId())
+                    .labName("General Lab")
+                    .status(ComputerStatus.ONLINE)
+                    .lastSeenAt(Instant.now())
+                    .build();
+            computer = computerRepository.save(computer);
+            log.info("[INFO] Auto-registered new computer record: ID={}", computer.getId());
+        }
 
         if (computer.getStatus() == ComputerStatus.PENDING || computer.getStatus() == ComputerStatus.REJECTED) {
             log.warn("Blocking metrics ingestion for unapproved computer {} with status {}", computer.getHostname(), computer.getStatus());
@@ -73,7 +90,10 @@ public class SystemMetricsServiceImpl implements SystemMetricsService {
 
         metric = systemMetricRepository.save(metric);
 
-        // Update Computer Status & Last Seen Timestamp
+        // Structured Heartbeat & Reconnect Logging
+        ComputerStatus oldStatus = computer.getStatus();
+        log.info("[INFO] Heartbeat received from {} (Agent: {})", computer.getHostname(), computer.getAgentId());
+
         computer.setLastSeenAt(Instant.now());
         if (request.getInternetConnected() != null) {
             computer.setInternetConnected(request.getInternetConnected());
@@ -86,13 +106,19 @@ public class SystemMetricsServiceImpl implements SystemMetricsService {
         double ram = request.getMemoryUsagePercent() != null ? request.getMemoryUsagePercent() : 0.0;
         double disk = request.getDiskUsagePercent() != null ? request.getDiskUsagePercent() : 0.0;
 
+        ComputerStatus newStatus;
         if (cpu >= 90.0 || ram >= 95.0 || disk >= 95.0) {
-            computer.setStatus(ComputerStatus.CRITICAL);
+            newStatus = ComputerStatus.CRITICAL;
         } else if (cpu >= 75.0 || ram >= 80.0 || disk >= 85.0) {
-            computer.setStatus(ComputerStatus.WARNING);
+            newStatus = ComputerStatus.WARNING;
         } else {
-            computer.setStatus(ComputerStatus.ONLINE);
+            newStatus = ComputerStatus.ONLINE;
         }
+
+        if (oldStatus != newStatus) {
+            log.info("[INFO] PC {} status changed {} → {}", computer.getHostname(), oldStatus, newStatus);
+        }
+        computer.setStatus(newStatus);
         computerRepository.save(computer);
 
         // Calculate Health Score

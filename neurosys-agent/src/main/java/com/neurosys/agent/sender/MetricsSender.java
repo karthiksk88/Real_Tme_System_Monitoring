@@ -51,9 +51,9 @@ public class MetricsSender {
                         Map<String, Object> data = (Map<String, Object>) respMap.get("data");
                         this.agentAuthToken = (String) data.get("agentAuthToken");
                         String status = (String) data.get("status");
-                        log.info("Agent registration successful: AgentID={}, Status={}", regData.get("agentId"), status);
+                        log.info("[INFO] Agent registration successful: AgentID={}, Status={}", regData.get("agentId"), status);
                         if (wasOffline) {
-                            log.info("Server connection restored. Resuming live telemetry transmission.");
+                            log.info("[INFO] Agent connection restored. Server connection re-established.");
                             wasOffline = false;
                         }
                         return true;
@@ -61,13 +61,13 @@ public class MetricsSender {
                 }
             } else {
                 if (!wasOffline) {
-                    log.warn("Server returned HTTP status {}. Retrying in next sampling cycle...", response.statusCode());
+                    log.warn("[INFO] Server returned HTTP status {}. Retrying in next cycle...", response.statusCode());
                     wasOffline = true;
                 }
             }
         } catch (Exception e) {
             if (!wasOffline) {
-                log.warn("Server/Internet unavailable ({}). Retrying in next sampling cycle...", e.getMessage());
+                log.warn("[INFO] Agent connection lost ({}). Retrying in next cycle...", e.getMessage());
                 wasOffline = true;
             }
         }
@@ -116,11 +116,15 @@ public class MetricsSender {
             HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
                 if (wasOffline) {
-                    log.info("Server connection restored. Resuming live telemetry transmission.");
+                    log.info("[INFO] Agent connection restored. Resuming live telemetry transmission.");
                     wasOffline = false;
                 }
                 log.info("Successfully transmitted metrics payload to server. CPU: {}%, RAM: {}%",
                         payload.get("cpuUsagePercent"), payload.get("memoryUsagePercent"));
+            } else if (response.statusCode() == 404 || response.statusCode() == 500) {
+                log.warn("[INFO] Server reported status {}. Triggering re-registration sequence.", response.statusCode());
+                wasOffline = true;
+                cacheManager.cacheUnsentPayload(payload);
             } else {
                 if (!wasOffline) {
                     log.warn("Server returned HTTP error status: {}. Caching payload locally.", response.statusCode());
@@ -130,7 +134,7 @@ public class MetricsSender {
             }
         } catch (Exception e) {
             if (!wasOffline) {
-                log.warn("Server/Internet unavailable ({}). Caching metrics payload on local disk.", e.getMessage());
+                log.warn("[INFO] Agent connection lost ({}). Caching metrics payload on local disk.", e.getMessage());
                 wasOffline = true;
             }
             cacheManager.cacheUnsentPayload(payload);

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import StatusBadge from '../components/StatusBadge';
 import { metricsService } from '../services/metricsService';
 import api from '../services/api';
-import { Monitor, Search, Plus, Download, CheckCircle, XCircle, Terminal, RefreshCw, X, ShieldAlert } from 'lucide-react';
+import { Monitor, Search, Plus, Download, CheckCircle, XCircle, Terminal, RefreshCw, X, ShieldAlert, AlertTriangle } from 'lucide-react';
 
 const Computers = () => {
   const [computers, setComputers] = useState([]);
@@ -15,6 +15,7 @@ const Computers = () => {
   const [sortBy, setSortBy] = useState('health');
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,10 +39,16 @@ const Computers = () => {
   const fetchComputers = async () => {
     try {
       const res = await metricsService.getAllComputers();
-      const dataList = res?.data || (Array.isArray(res) ? res : []);
-      if (Array.isArray(dataList)) setComputers(dataList);
+      const dataList = res?.data || (Array.isArray(res) ? res : null);
+      if (Array.isArray(dataList)) {
+        setComputers(dataList);
+        setFetchError(null);
+      } else if (res?.status === 'error' || res?.message) {
+        setFetchError("Unable to load computer data");
+      }
     } catch (e) {
       console.error('Failed to load computers', e);
+      setFetchError("Unable to load computer data");
     } finally {
       setLoading(false);
     }
@@ -100,7 +107,15 @@ const Computers = () => {
         (c.labName && c.labName.toLowerCase().includes(s));
 
       const matchesLab = filterLab === 'ALL' || c.labName === filterLab;
-      const matchesStatus = filterStatus === 'ALL' || c.status === filterStatus;
+      
+      let matchesStatus = filterStatus === 'ALL';
+      if (filterStatus === 'ONLINE') {
+        matchesStatus = c.status === 'ONLINE' || c.status === 'WARNING' || c.status === 'CRITICAL';
+      } else if (filterStatus === 'OFFLINE') {
+        matchesStatus = c.status === 'OFFLINE';
+      } else if (filterStatus !== 'ALL') {
+        matchesStatus = c.status === filterStatus;
+      }
 
       const isOffline = c.status === 'OFFLINE';
       const isUnknown = c.status === 'UNKNOWN';
@@ -149,6 +164,22 @@ const Computers = () => {
           <span>Add Computer</span>
         </button>
       </div>
+
+      {/* Temporary API Error Notice Banner */}
+      {fetchError && computers.length === 0 && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between font-medium">
+          <div className="flex items-center space-x-2.5">
+            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 animate-pulse" />
+            <div>
+              <strong className="text-amber-200 block">Unable to load computer data</strong>
+              <span>Re-establishing connection to Railway server... Registered computer records are safe.</span>
+            </div>
+          </div>
+          <button onClick={fetchComputers} className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold border border-amber-500/30 transition-all">
+            Retry Now
+          </button>
+        </div>
+      )}
 
       {/* Pending Computer Approvals Notification Banner */}
       {pendingComputers.length > 0 && (
@@ -257,7 +288,7 @@ const Computers = () => {
         <div className="p-12 text-center text-slate-400 text-xs italic">Loading computer catalog...</div>
       ) : filteredComputers.length === 0 ? (
         <div className="p-12 glass-panel rounded-2xl border border-slate-800 text-center text-slate-400 text-xs">
-          No computers found matching your search and filter criteria.
+          {fetchError ? fetchError : "No computers found matching your search and filter criteria."}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

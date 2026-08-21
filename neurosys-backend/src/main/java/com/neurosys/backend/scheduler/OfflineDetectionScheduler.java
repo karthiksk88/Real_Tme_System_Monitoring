@@ -29,7 +29,9 @@ public class OfflineDetectionScheduler {
         List<Computer> staleComputers = computerRepository.findStaleOnlineComputers(threshold);
 
         for (Computer c : staleComputers) {
-            log.warn("Computer {} (Agent: {}) missed heartbeat (>60s). Marking OFFLINE.", c.getHostname(), c.getAgentId());
+            ComputerStatus oldStatus = c.getStatus();
+            log.info("[INFO] PC {} (Agent: {}) missed heartbeat (>60s). Status changed {} → OFFLINE", 
+                    c.getHostname(), c.getAgentId(), oldStatus);
             c.setStatus(ComputerStatus.OFFLINE);
             computerRepository.save(c);
             alertEngineService.triggerOfflineAlert(c);
