@@ -1,5 +1,6 @@
 package com.neurosys.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -18,6 +19,7 @@ public class SoftwareInventory extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "computer_id", nullable = false)
     private Computer computer;
