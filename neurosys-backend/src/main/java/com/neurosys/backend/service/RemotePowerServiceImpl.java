@@ -43,12 +43,6 @@ public class RemotePowerServiceImpl implements RemotePowerService {
             throw new IllegalArgumentException("Computer endpoint is unapproved. Remote actions unavailable.");
         }
 
-        // Offline validation: Check if computer is OFFLINE or UNKNOWN
-        if (computer.getStatus() == ComputerStatus.OFFLINE || computer.getStatus() == ComputerStatus.UNKNOWN) {
-            log.warn("Attempted remote power action on offline computer {}", computer.getHostname());
-            throw new IllegalArgumentException("Computer is offline. Remote power actions unavailable.");
-        }
-
         // Check for existing active command to prevent rapid duplicate clicks
         Optional<RemotePowerCommand> activeCmd = commandRepository
                 .findFirstByComputerIdAndStatusInOrderByCreatedAtDesc(
@@ -57,13 +51,13 @@ public class RemotePowerServiceImpl implements RemotePowerService {
         if (activeCmd.isPresent()) {
             RemotePowerCommand existing = activeCmd.get();
             long secondsAgo = Duration.between(existing.getCreatedAt(), Instant.now()).getSeconds();
-            if (secondsAgo < 30) {
+            if (secondsAgo < 15) {
                 log.info("Returning existing pending/executing command {} for computer {}", existing.getId(), computer.getHostname());
                 return mapToCommandDto(existing);
             }
         }
 
-        // Create new RemotePowerCommand
+        // Create new RemotePowerCommand (queue command so agent will execute immediately upon polling/heartbeat)
         RemotePowerCommand command = RemotePowerCommand.builder()
                 .computer(computer)
                 .commandType(type)
@@ -71,6 +65,8 @@ public class RemotePowerServiceImpl implements RemotePowerService {
                 .requestedBy(requestedBy != null ? requestedBy : "Administrator")
                 .build();
 
+        command.setCreatedAt(Instant.now());
+        command.setUpdatedAt(Instant.now());
         command = commandRepository.save(command);
 
         // Record Audit Log
@@ -79,8 +75,10 @@ public class RemotePowerServiceImpl implements RemotePowerService {
                 .computerName(computer.getHostname())
                 .computerId(computer.getId())
                 .action(type)
-                .status("ACKNOWLEDGED")
+                .status("QUEUED")
                 .build();
+        audit.setCreatedAt(Instant.now());
+        audit.setUpdatedAt(Instant.now());
         auditRepository.save(audit);
 
         log.info("Issued {} command for computer {} ({}) by user {}", type, computer.getHostname(), computer.getId(), command.getRequestedBy());
@@ -97,6 +95,7 @@ public class RemotePowerServiceImpl implements RemotePowerService {
         if (pendingCmd.isPresent()) {
             RemotePowerCommand command = pendingCmd.get();
             command.setStatus(PowerCommandStatus.SENT);
+            command.setUpdatedAt(Instant.now());
             commandRepository.save(command);
             log.info("Delivered power command {} ({}) to agent {}", command.getId(), command.getCommandType(), agentId);
             return mapToCommandDto(command);
@@ -114,6 +113,7 @@ public class RemotePowerServiceImpl implements RemotePowerService {
         if (request.getFailureReason() != null) {
             command.setFailureReason(request.getFailureReason());
         }
+        command.setUpdatedAt(Instant.now());
         commandRepository.save(command);
 
         // Update corresponding Audit record
@@ -125,6 +125,8 @@ public class RemotePowerServiceImpl implements RemotePowerService {
                 .status(request.getStatus().name())
                 .failureReason(request.getFailureReason())
                 .build();
+        audit.setCreatedAt(Instant.now());
+        audit.setUpdatedAt(Instant.now());
         auditRepository.save(audit);
 
         log.info("Updated power command {} status to {}", command.getId(), request.getStatus());
