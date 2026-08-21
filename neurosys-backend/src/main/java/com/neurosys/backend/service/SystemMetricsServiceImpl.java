@@ -51,6 +51,8 @@ public class SystemMetricsServiceImpl implements SystemMetricsService {
                     .status(ComputerStatus.ONLINE)
                     .lastSeenAt(Instant.now())
                     .build();
+            computer.setCreatedAt(Instant.now());
+            computer.setUpdatedAt(Instant.now());
             computer = computerRepository.save(computer);
             log.info("[INFO] Auto-registered new computer record: ID={}", computer.getId());
         }
@@ -71,11 +73,11 @@ public class SystemMetricsServiceImpl implements SystemMetricsService {
 
         SystemMetric metric = SystemMetric.builder()
                 .computer(computer)
-                .cpuUsagePercent(request.getCpuUsagePercent())
-                .memoryUsagePercent(request.getMemoryUsagePercent())
+                .cpuUsagePercent(request.getCpuUsagePercent() != null ? request.getCpuUsagePercent() : 0.0)
+                .memoryUsagePercent(request.getMemoryUsagePercent() != null ? request.getMemoryUsagePercent() : 0.0)
                 .memoryUsedMb(request.getMemoryUsedMb())
                 .memoryFreeMb(request.getMemoryFreeMb())
-                .diskUsagePercent(request.getDiskUsagePercent())
+                .diskUsagePercent(request.getDiskUsagePercent() != null ? request.getDiskUsagePercent() : 0.0)
                 .diskUsedGb(request.getDiskUsedGb())
                 .diskFreeGb(request.getDiskFreeGb())
                 .diskReadBytesSec(request.getDiskReadBytesSec())
@@ -88,6 +90,8 @@ public class SystemMetricsServiceImpl implements SystemMetricsService {
                 .recordedAt(request.getTimestamp() != null ? request.getTimestamp() : Instant.now())
                 .build();
 
+        metric.setCreatedAt(Instant.now());
+        metric.setUpdatedAt(Instant.now());
         metric = systemMetricRepository.save(metric);
 
         // Structured Heartbeat & Reconnect Logging
@@ -119,6 +123,7 @@ public class SystemMetricsServiceImpl implements SystemMetricsService {
             log.info("[INFO] PC {} status changed {} → {}", computer.getHostname(), oldStatus, newStatus);
         }
         computer.setStatus(newStatus);
+        computer.setUpdatedAt(Instant.now());
         computerRepository.save(computer);
 
         // Calculate Health Score
