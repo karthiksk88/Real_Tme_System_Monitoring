@@ -77,8 +77,6 @@ public class RemotePowerServiceImpl implements RemotePowerService {
                 .action(type)
                 .status("QUEUED")
                 .build();
-        audit.setCreatedAt(Instant.now());
-        audit.setUpdatedAt(Instant.now());
         auditRepository.save(audit);
 
         log.info("Issued {} command for computer {} ({}) by user {}", type, computer.getHostname(), computer.getId(), command.getRequestedBy());
@@ -125,8 +123,6 @@ public class RemotePowerServiceImpl implements RemotePowerService {
                 .status(request.getStatus().name())
                 .failureReason(request.getFailureReason())
                 .build();
-        audit.setCreatedAt(Instant.now());
-        audit.setUpdatedAt(Instant.now());
         auditRepository.save(audit);
 
         log.info("Updated power command {} status to {}", command.getId(), request.getStatus());
