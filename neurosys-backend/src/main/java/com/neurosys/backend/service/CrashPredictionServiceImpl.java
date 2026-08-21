@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -37,8 +38,11 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
     private static final int MIN_HISTORICAL_SAMPLES = 10;
     private static final long CACHE_VALIDITY_MINUTES = 10;
 
+    // Fast, thread-safe in-memory cache for deterministic page-refresh consistency
+    private final Map<String, CrashPredictionResponse> cacheMap = new ConcurrentHashMap<>();
+
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public CrashPredictionResponse evaluateCrashRisk(String computerId) {
         Computer computer = computerRepository.findById(computerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Computer", "id", computerId));
@@ -52,11 +56,11 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
             log.info("[INFO] Insufficient historical data for computer {} ({}/{} samples). Returning Data Sufficiency: Pending.",
                     computer.getHostname(), sampleCount, MIN_HISTORICAL_SAMPLES);
 
-            return CrashPredictionResponse.builder()
+            CrashPredictionResponse pendingResponse = CrashPredictionResponse.builder()
                     .computerId(computer.getId())
                     .hostname(computer.getHostname())
                     .isDataSufficient(false)
-                    .insufficientDataReason(String.format("Not enough historical data for %s (%d/%d samples collected).",
+                    .insufficientDataReason(String.format("Not enough historical telemetry data for %s (%d/%d samples collected).",
                             computer.getHostname(), sampleCount, MIN_HISTORICAL_SAMPLES))
                     .predictedIssue("Prediction Unavailable")
                     .estimatedTimeframe("N/A")
@@ -75,6 +79,9 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
                     .dataEndDate(Instant.now())
                     .predictedAt(Instant.now())
                     .build();
+
+            cacheMap.put(computerId, pendingResponse);
+            return pendingResponse;
         }
 
         // Sort historical telemetry chronologically ascending (t0 -> tN)
@@ -266,52 +273,8 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
             predictedGraph.add(fPoint);
         }
 
-        // 7. Store Generated Prediction in Database for Cache & Consistency (with null-safe BaseEntity timestamps)
-        String factorsJson, histGraphJson, predGraphJson;
-        try {
-            factorsJson = objectMapper.writeValueAsString(contributingFactors);
-            histGraphJson = objectMapper.writeValueAsString(historicalGraph);
-            predGraphJson = objectMapper.writeValueAsString(predictedGraph);
-        } catch (Exception e) {
-            factorsJson = "[]";
-            histGraphJson = "[]";
-            predGraphJson = "[]";
-        }
-
-        String predId = UUID.randomUUID().toString();
-        try {
-            Prediction prediction = Prediction.builder()
-                    .computer(computer)
-                    .predictionType(PredictionType.CRASH_RISK)
-                    .horizonMinutes(30)
-                    .predictedIssue(predictedIssue)
-                    .estimatedTimeframe(estimatedTimeframe)
-                    .riskLevel(riskLevel)
-                    .modelVersion(MODEL_VERSION)
-                    .crashProbability(crashProbability)
-                    .confidenceScore(confidenceScore)
-                    .reasonsJson(factorsJson)
-                    .contributingFactorsJson(factorsJson)
-                    .historicalGraphJson(histGraphJson)
-                    .predictedGraphJson(predGraphJson)
-                    .recommendedAction(recommendedAction)
-                    .dataStartDate(startDate)
-                    .dataEndDate(endDate)
-                    .predictedAt(Instant.now())
-                    .build();
-
-            prediction.setCreatedAt(Instant.now());
-            prediction.setUpdatedAt(Instant.now());
-            prediction = predictionRepository.save(prediction);
-            predId = prediction.getId();
-            log.info("[INFO] Evaluated deterministic trend prediction for {} [Issue: {}, Risk: {}, Confidence: {}%]",
-                    computer.getHostname(), predictedIssue, riskLevel, confidencePercent);
-        } catch (Exception e) {
-            log.warn("Failed saving prediction entity to database for computer {}: {}", computer.getHostname(), e.getMessage());
-        }
-
-        return CrashPredictionResponse.builder()
-                .id(predId)
+        CrashPredictionResponse response = CrashPredictionResponse.builder()
+                .id(UUID.randomUUID().toString())
                 .computerId(computer.getId())
                 .hostname(computer.getHostname())
                 .isDataSufficient(true)
@@ -333,70 +296,23 @@ public class CrashPredictionServiceImpl implements CrashPredictionService {
                 .dataEndDate(endDate)
                 .predictedAt(Instant.now())
                 .build();
+
+        cacheMap.put(computerId, response);
+        log.info("[INFO] Evaluated deterministic trend prediction for {} [Issue: {}, Risk: {}, Confidence: {}%]",
+                computer.getHostname(), predictedIssue, riskLevel, confidencePercent);
+
+        return response;
     }
 
     @Override
     @Transactional(readOnly = true)
     public CrashPredictionResponse getLatestCrashPrediction(String computerId) {
-        try {
-            Optional<Prediction> cached = predictionRepository.findFirstByComputerIdAndPredictionTypeOrderByPredictedAtDesc(
-                    computerId, PredictionType.CRASH_RISK);
-
-            if (cached.isPresent()) {
-                Prediction p = cached.get();
-                if (p.getPredictedAt() != null && p.getPredictedAt().isAfter(Instant.now().minus(CACHE_VALIDITY_MINUTES, ChronoUnit.MINUTES))
-                        && p.getPredictedIssue() != null) {
-                    
-                    List<String> factors = new ArrayList<>();
-                    List<Map<String, Object>> histGraph = new ArrayList<>();
-                    List<Map<String, Object>> predGraph = new ArrayList<>();
-
-                    try {
-                        if (p.getContributingFactorsJson() != null) {
-                            factors = objectMapper.readValue(p.getContributingFactorsJson(), List.class);
-                        }
-                        if (p.getHistoricalGraphJson() != null) {
-                            histGraph = objectMapper.readValue(p.getHistoricalGraphJson(), List.class);
-                        }
-                        if (p.getPredictedGraphJson() != null) {
-                            predGraph = objectMapper.readValue(p.getPredictedGraphJson(), List.class);
-                        }
-                    } catch (Exception e) {
-                        log.warn("Error deserializing cached prediction JSONs", e);
-                    }
-
-                    int confPercent = (int) Math.round((p.getConfidenceScore() != null ? p.getConfidenceScore() : 0.85) * 100);
-
-                    return CrashPredictionResponse.builder()
-                            .id(p.getId())
-                            .computerId(computerId)
-                            .hostname(p.getComputer().getHostname())
-                            .isDataSufficient(true)
-                            .insufficientDataReason(null)
-                            .predictedIssue(p.getPredictedIssue())
-                            .estimatedTimeframe(p.getEstimatedTimeframe() != null ? p.getEstimatedTimeframe() : "No issue predicted")
-                            .riskLevel(p.getRiskLevel() != null ? p.getRiskLevel() : "LOW")
-                            .crashProbability(p.getCrashProbability() != null ? p.getCrashProbability() : 0.05)
-                            .confidenceScore(p.getConfidenceScore() != null ? p.getConfidenceScore() : 0.85)
-                            .confidencePercent(confPercent)
-                            .mainFactors(factors)
-                            .reasons(factors)
-                            .contributingFactors(factors)
-                            .historicalData(histGraph)
-                            .predictedData(predGraph)
-                            .recommendedAction(p.getRecommendedAction())
-                            .modelVersion(p.getModelVersion() != null ? p.getModelVersion() : MODEL_VERSION)
-                            .dataStartDate(p.getDataStartDate())
-                            .dataEndDate(p.getDataEndDate())
-                            .predictedAt(p.getPredictedAt())
-                            .build();
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed retrieving cached prediction for computer {}: {}", computerId, e.getMessage());
+        CrashPredictionResponse cached = cacheMap.get(computerId);
+        if (cached != null && cached.getPredictedAt() != null &&
+                cached.getPredictedAt().isAfter(Instant.now().minus(CACHE_VALIDITY_MINUTES, ChronoUnit.MINUTES))) {
+            return cached;
         }
 
-        // Cache expired or missing -> Evaluate deterministically from database telemetry
         return evaluateCrashRisk(computerId);
     }
 }
