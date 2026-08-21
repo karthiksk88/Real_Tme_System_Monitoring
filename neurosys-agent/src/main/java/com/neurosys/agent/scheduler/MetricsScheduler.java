@@ -27,6 +27,7 @@ public class MetricsScheduler {
     private final SystemInfoCollector systemInfoCollector;
     private final InternetCollector internetCollector;
     private final SoftwareCollector softwareCollector;
+    private final WindowsLogCollector windowsLogCollector;
     private final MetricsSender metricsSender;
     private final PowerCommandHandler powerCommandHandler;
     private final ScheduledExecutorService scheduler;
@@ -43,6 +44,7 @@ public class MetricsScheduler {
         this.systemInfoCollector = new SystemInfoCollector(systemInfo);
         this.internetCollector = new InternetCollector();
         this.softwareCollector = new SoftwareCollector();
+        this.windowsLogCollector = new WindowsLogCollector();
         this.metricsSender = new MetricsSender();
         this.powerCommandHandler = new PowerCommandHandler();
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -118,6 +120,14 @@ public class MetricsScheduler {
             payload.put("topProcesses", processCollector.getTopProcesses(10));
 
             metricsSender.sendMetricsPayload(payload);
+
+            // Sync Windows Diagnostic Log events on cycle #1 or every 60 cycles (1 minute)
+            if (cycleCounter == 1 || cycleCounter % 60 == 0) {
+                Executors.newSingleThreadExecutor().submit(() -> {
+                    var events = windowsLogCollector.collectRecentWindowsEvents();
+                    metricsSender.sendDiagnosticEvents(AgentConfig.getAgentId(), events);
+                });
+            }
 
             // Sync software inventory on initial cycle (#1) or every 300 cycles (5 minutes)
             if (cycleCounter == 1 || cycleCounter % 300 == 0) {

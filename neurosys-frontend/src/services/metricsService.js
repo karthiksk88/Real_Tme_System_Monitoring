@@ -18,9 +18,14 @@ export const metricsService = {
   getAnalyticsSummary: async () => api.get('/analytics/summary'),
   askAiAssistant: async (message, computerId) => api.post('/ai-assistant/chat', { message, computerId }),
 
-  // Remote Power Management APIs (Pass empty body object {} for POST requests)
+  // Remote Power Management APIs
   lockComputer: async (computerId) => api.post(`/computers/${computerId}/lock`, {}),
   restartComputer: async (computerId) => api.post(`/computers/${computerId}/restart`, {}),
   shutdownComputer: async (computerId) => api.post(`/computers/${computerId}/shutdown`, {}),
   getPowerAudits: async (computerId) => api.get(`/computers/${computerId}/power-audits`),
+
+  // AI Performance & Failure Diagnosis APIs
+  getDiagnosis: async (computerId) => api.get(`/computers/${computerId}/diagnosis`),
+  getPrediction: async (computerId) => api.get(`/computers/${computerId}/prediction`),
+  getAISummary: async () => api.get('/analytics/ai-summary'),
 };

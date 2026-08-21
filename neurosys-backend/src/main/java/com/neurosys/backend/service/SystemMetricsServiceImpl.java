@@ -28,6 +28,7 @@ public class SystemMetricsServiceImpl implements SystemMetricsService {
     private final ComputerRepository computerRepository;
     private final HealthScoreEngine healthScoreEngine;
     private final AlertEngineService alertEngineService;
+    private final DiagnosisEngineService diagnosisEngineService;
     private final WebSocketMetricsPublisher webSocketMetricsPublisher;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
@@ -99,6 +100,13 @@ public class SystemMetricsServiceImpl implements SystemMetricsService {
 
         // Evaluate Alert Rules
         List<AlertDto> alerts = alertEngineService.evaluateAndTriggerAlerts(computer, metric);
+
+        // Process Diagnosis Incidents & Resolution Detection
+        try {
+            diagnosisEngineService.processMetricsForIncidents(computer.getId());
+        } catch (Exception e) {
+            log.warn("Failed processing metrics for diagnosis incidents: {}", e.getMessage());
+        }
 
         SystemMetricDto metricDto = mapToDto(metric);
 

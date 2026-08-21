@@ -6,6 +6,7 @@ import ProcessTable from '../components/ProcessTable';
 import FileAnalyzerCard from '../components/FileAnalyzerCard';
 import LogAnalyzer from '../components/LogAnalyzer';
 import RemotePowerManagement from '../components/RemotePowerManagement';
+import AIDiagnosisCard from '../components/AIDiagnosisCard';
 import { metricsService } from '../services/metricsService';
 import { Monitor, Cpu, HardDrive, Wifi, Sparkles, Clock } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
@@ -141,22 +142,8 @@ const ComputerDetails = () => {
       {/* REMOTE POWER MANAGEMENT CARD SECTION */}
       <RemotePowerManagement computer={computer} onStatusUpdate={fetchComputerData} />
 
-      {/* AI Risk Prediction Banner */}
-      {crashRisk && (
-        <div className={`p-4 rounded-2xl glass-panel border ${crashRisk.riskScorePercentage > 60 ? 'border-red-500/50 bg-red-500/5' : 'border-slate-800'}`}>
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-cyan-400" /> AI System Risk Prediction
-            </h3>
-            <span className={`px-3 py-0.5 rounded-full text-xs font-bold ${crashRisk.riskScorePercentage > 60 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
-              Risk: {crashRisk.riskScorePercentage || 82}% ({crashRisk.riskLevel || 'HIGH'})
-            </span>
-          </div>
-          <p className="text-xs text-slate-300 mt-1">
-            <strong>Predicted Issue:</strong> {crashRisk.predictedIssue || 'Performance degradation'} • <strong>Timeframe:</strong> {crashRisk.estimatedTimeframe || '~2 months'}
-          </p>
-        </div>
-      )}
+      {/* AI SYSTEM DIAGNOSIS & FAILURE PREDICTION SECTION */}
+      <AIDiagnosisCard computerId={id} />
 
       {/* Navigation Tabs & Time Range Selectors */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
@@ -178,58 +165,60 @@ const ComputerDetails = () => {
                 className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
                   activeTab === tab.id
                     ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                    : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
                 {Icon && <Icon className="w-3.5 h-3.5" />}
-                {tab.label}
+                <span>{tab.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Time Range Selectors for Metric Graphs */}
-        {['cpu', 'ram', 'disk', 'network'].includes(activeTab) && (
-          <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
-            <Clock className="w-3.5 h-3.5 text-slate-500 ml-2 mr-1" />
+        {/* Time Range Selector for Historical Graphs */}
+        {(activeTab === 'cpu' || activeTab === 'ram' || activeTab === 'disk' || activeTab === 'network') && (
+          <div className="flex items-center space-x-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+            <Clock className="w-3.5 h-3.5 text-slate-400 ml-2 mr-1" />
             {['1h', '6h', '24h', '7d', '30d'].map((range) => (
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                  timeRange === range ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-slate-200'
+                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
+                  timeRange === range
+                    ? 'bg-cyan-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                 }`}
               >
-                {range.toUpperCase()}
+                {range}
               </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* GRAPH CONTENTS */}
+      {/* Tab Contents: Telemetry Historical Charts */}
       {activeTab === 'cpu' && (
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+        <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                <Cpu className="w-5 h-5 text-cyan-400" />
-                CPU Usage — {computer.hostname}
-              </h3>
-              <p className="text-xs text-slate-400">Historical CPU utilization % over time ({timeRange.toUpperCase()} window)</p>
-            </div>
-            <span className="text-xs font-mono font-bold text-cyan-400">Current: {Math.round(computer.currentCpuUsage || 0)}%</span>
+            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+              <Cpu className="w-5 h-5 text-cyan-400" />
+              CPU Utilization Trend ({timeRange.toUpperCase()})
+            </h3>
+            <span className="text-xs font-mono text-cyan-400 font-bold">
+              Current: {computer.currentCpuUsage != null ? Math.round(computer.currentCpuUsage) : '—'}%
+            </span>
           </div>
-
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={metricHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
-                <YAxis stroke="#64748b" fontSize={11} domain={[0, 100]} unit="%" />
-                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }} />
-                <ReferenceLine y={95} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Critical (95%)', fill: '#ef4444', fontSize: 10 }} />
-                <Line type="monotone" dataKey="cpu" stroke="#06b6d4" strokeWidth={2} dot={false} name="CPU Usage %" />
+                <YAxis domain={[0, 100]} stroke="#64748b" fontSize={11} unit="%" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }}
+                />
+                <ReferenceLine y={85} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Critical (85%)', fill: '#ef4444', fontSize: 10 }} />
+                <Line type="monotone" dataKey="cpu" name="CPU Usage %" stroke="#06b6d4" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -237,28 +226,27 @@ const ComputerDetails = () => {
       )}
 
       {activeTab === 'ram' && (
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+        <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                <HardDrive className="w-5 h-5 text-blue-400" />
-                Memory (RAM) Usage — {computer.hostname}
-              </h3>
-              <p className="text-xs text-slate-400">Historical memory allocation % over time ({timeRange.toUpperCase()} window)</p>
-            </div>
-            <span className="text-xs font-mono font-bold text-blue-400">Current: {Math.round(computer.currentRamUsage || 0)}%</span>
+            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+              <HardDrive className="w-5 h-5 text-purple-400" />
+              Memory Allocation & Availability ({timeRange.toUpperCase()})
+            </h3>
+            <span className="text-xs font-mono text-purple-400 font-bold">
+              Current RAM: {computer.currentRamUsage != null ? Math.round(computer.currentRamUsage) : '—'}%
+            </span>
           </div>
-
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={metricHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
-                <YAxis stroke="#64748b" fontSize={11} domain={[0, 100]} unit="%" />
-                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }} />
-                <Legend />
-                <ReferenceLine y={95} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Critical (95%)', fill: '#ef4444', fontSize: 10 }} />
-                <Line type="monotone" dataKey="ram" stroke="#3b82f6" strokeWidth={2} dot={false} name="RAM Usage %" />
+                <YAxis domain={[0, 100]} stroke="#64748b" fontSize={11} unit="%" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }}
+                />
+                <ReferenceLine y={90} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Critical (90%)', fill: '#ef4444', fontSize: 10 }} />
+                <Line type="monotone" dataKey="ram" name="RAM Usage %" stroke="#a855f7" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -266,27 +254,27 @@ const ComputerDetails = () => {
       )}
 
       {activeTab === 'disk' && (
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+        <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                <HardDrive className="w-5 h-5 text-emerald-400" />
-                Storage Capacity — {computer.hostname}
-              </h3>
-              <p className="text-xs text-slate-400">Disk capacity usage % over time ({timeRange.toUpperCase()} window)</p>
-            </div>
-            <span className="text-xs font-mono font-bold text-emerald-400">Current: {Math.round(computer.currentDiskUsage || 0)}%</span>
+            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+              <HardDrive className="w-5 h-5 text-amber-400" />
+              Disk Capacity & Consumption Trend ({timeRange.toUpperCase()})
+            </h3>
+            <span className="text-xs font-mono text-amber-400 font-bold">
+              Disk Used: {computer.currentDiskUsage != null ? Math.round(computer.currentDiskUsage) : '—'}%
+            </span>
           </div>
-
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={metricHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
-                <YAxis stroke="#64748b" fontSize={11} domain={[0, 100]} unit="%" />
-                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }} />
-                <ReferenceLine y={95} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Critical (95%)', fill: '#ef4444', fontSize: 10 }} />
-                <Line type="monotone" dataKey="disk" stroke="#10b981" strokeWidth={2} dot={false} name="Disk Usage %" />
+                <YAxis domain={[0, 100]} stroke="#64748b" fontSize={11} unit="%" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }}
+                />
+                <ReferenceLine y={90} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: 'Warning (90%)', fill: '#f59e0b', fontSize: 10 }} />
+                <Line type="monotone" dataKey="disk" name="Disk Capacity %" stroke="#f59e0b" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -294,30 +282,28 @@ const ComputerDetails = () => {
       )}
 
       {activeTab === 'network' && (
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+        <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                <Wifi className="w-5 h-5 text-amber-400" />
-                Network Throughput — {computer.hostname}
-              </h3>
-              <p className="text-xs text-slate-400">Receive (↓ Download) & Transmit (↑ Upload) speed in Mbps ({timeRange.toUpperCase()} window)</p>
-            </div>
-            <span className="text-xs font-mono font-bold text-amber-400">
-              Total: {computer.currentNetworkSpeedMbps || 0} Mbps
+            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+              <Wifi className="w-5 h-5 text-emerald-400" />
+              Network Speed & Throughput Mbps ({timeRange.toUpperCase()})
+            </h3>
+            <span className="text-xs font-mono text-emerald-400 font-bold">
+              Speed: {computer.currentNetworkSpeedMbps != null ? `${computer.currentNetworkSpeedMbps} Mbps` : '—'}
             </span>
           </div>
-
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={metricHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
                 <YAxis stroke="#64748b" fontSize={11} unit=" Mbps" />
-                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }} />
-                <Legend />
-                <Line type="monotone" dataKey="rxMbps" stroke="#10b981" strokeWidth={2} dot={false} name="↓ Download (Rx Mbps)" />
-                <Line type="monotone" dataKey="txMbps" stroke="#f59e0b" strokeWidth={2} dot={false} name="↑ Upload (Tx Mbps)" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                <Line type="monotone" dataKey="rxMbps" name="Download (Rx Mbps)" stroke="#10b981" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="txMbps" name="Upload (Tx Mbps)" stroke="#3b82f6" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -325,7 +311,7 @@ const ComputerDetails = () => {
       )}
 
       {activeTab === 'processes' && <ProcessTable processes={processes} />}
-      {activeTab === 'storage' && <FileAnalyzerCard report={fileReport} />}
+      {activeTab === 'storage' && <FileAnalyzerCard fileReport={fileReport} />}
       {activeTab === 'logs' && <LogAnalyzer logs={logs} />}
     </div>
   );

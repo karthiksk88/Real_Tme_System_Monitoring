@@ -137,6 +137,31 @@ public class MetricsSender {
         }
     }
 
+    public void sendDiagnosticEvents(String agentId, List<Map<String, Object>> events) {
+        if (events == null || events.isEmpty()) return;
+        try {
+            String jsonBody = objectMapper.writeValueAsString(events);
+            String targetUrl = AgentConfig.getServerUrl() + "/agent/events?agentId=" + agentId;
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(URI.create(targetUrl))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody));
+
+            if (agentAuthToken != null) {
+                builder.header("X-Agent-Token", agentAuthToken);
+            }
+
+            HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                log.info("Successfully synced {} Windows diagnostic event log records with server.", events.size());
+            } else {
+                log.warn("Server returned HTTP status {} when syncing diagnostic events.", response.statusCode());
+            }
+        } catch (Exception e) {
+            log.debug("Failed to sync diagnostic events with server: {}", e.getMessage());
+        }
+    }
+
     public void sendSoftwarePayload(String agentId, List<Map<String, String>> softwareList) {
         try {
             Map<String, Object> payload = new HashMap<>();
