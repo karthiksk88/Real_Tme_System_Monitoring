@@ -101,7 +101,10 @@ public class SoftwareServiceImpl implements SoftwareService {
         log.info("Syncing {} software records for computer {}", 
                 request.getSoftwareList() != null ? request.getSoftwareList().size() : 0, computer.getHostname());
 
-        softwareInventoryRepository.deleteByComputerId(computer.getId());
+        List<SoftwareInventory> existing = softwareInventoryRepository.findByComputerId(computer.getId());
+        if (existing != null && !existing.isEmpty()) {
+            softwareInventoryRepository.deleteAll(existing);
+        }
 
         if (request.getSoftwareList() != null && !request.getSoftwareList().isEmpty()) {
             List<SoftwareInventory> entities = request.getSoftwareList().stream()
@@ -114,13 +117,13 @@ public class SoftwareServiceImpl implements SoftwareService {
                     })
                     .map(dto -> {
                         String name = dto.getName().trim();
-                        if (name.length() > 195) name = name.substring(0, 195);
+                        if (name.length() > 190) name = name.substring(0, 190);
                         String version = dto.getVersion() != null ? dto.getVersion().trim() : "";
-                        if (version.length() > 95) version = version.substring(0, 95);
+                        if (version.length() > 90) version = version.substring(0, 90);
                         String publisher = dto.getPublisher() != null ? dto.getPublisher().trim() : "";
-                        if (publisher.length() > 145) publisher = publisher.substring(0, 145);
+                        if (publisher.length() > 140) publisher = publisher.substring(0, 140);
                         String installDate = dto.getInstallDate() != null ? dto.getInstallDate().trim() : "";
-                        if (installDate.length() > 45) installDate = installDate.substring(0, 45);
+                        if (installDate.length() > 40) installDate = installDate.substring(0, 40);
 
                         SoftwareInventory entity = SoftwareInventory.builder()
                                 .computer(computer)
