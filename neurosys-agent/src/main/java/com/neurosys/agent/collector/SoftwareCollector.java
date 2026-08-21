@@ -31,10 +31,10 @@ public class SoftwareCollector {
 
     private void collectWindowsSoftwareRegistry(List<Map<String, String>> softwareList, Set<String> seenNames) {
         try {
-            String psCommand = "Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*, " +
-                    "HKLM:\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*, " +
-                    "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* -ErrorAction SilentlyContinue | " +
-                    "Where-Object { $_.DisplayName -ne $null } | " +
+            String psCommand = "Get-ItemProperty 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*', " +
+                    "'HKLM:\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*', " +
+                    "'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' -ErrorAction SilentlyContinue | " +
+                    "Where-Object DisplayName | " +
                     "Select-Object DisplayName, DisplayVersion, Publisher, InstallDate | " +
                     "ConvertTo-Csv -NoTypeInformation";
 
@@ -60,7 +60,7 @@ public class SoftwareCollector {
                         // Add original full name entry
                         addSoftwareEntry(rawName, version, publisher, installDate, softwareList, seenNames);
 
-                        // Add normalized standard name entry (e.g. "Python 3.13.6" -> "Python")
+                        // Add normalized standard name entry (e.g. "Python 3.13.6 (64-bit)" -> "Python")
                         String cleanName = cleanRegistrySoftwareName(rawName);
                         if (!cleanName.equalsIgnoreCase(rawName)) {
                             addSoftwareEntry(cleanName, version, publisher, installDate, softwareList, seenNames);
@@ -108,7 +108,7 @@ public class SoftwareCollector {
 
     private void collectWindowsAppxSoftware(List<Map<String, String>> softwareList, Set<String> seenNames) {
         try {
-            String psCommand = "Get-AppxPackage | Where-Object { $_.NonRemovable -ne $true -and $_.IsFramework -ne $true } | Select-Object Name, Version, Publisher | ConvertTo-Csv -NoTypeInformation";
+            String psCommand = "Get-AppxPackage -ErrorAction SilentlyContinue | Where-Object Name | Select-Object Name, Version, Publisher | ConvertTo-Csv -NoTypeInformation";
 
             ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", psCommand);
             pb.redirectErrorStream(true);

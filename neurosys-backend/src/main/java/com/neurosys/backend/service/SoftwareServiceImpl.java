@@ -122,7 +122,7 @@ public class SoftwareServiceImpl implements SoftwareService {
                         String installDate = dto.getInstallDate() != null ? dto.getInstallDate().trim() : "";
                         if (installDate.length() > 45) installDate = installDate.substring(0, 45);
 
-                        return SoftwareInventory.builder()
+                        SoftwareInventory entity = SoftwareInventory.builder()
                                 .computer(computer)
                                 .name(name)
                                 .version(version)
@@ -130,6 +130,10 @@ public class SoftwareServiceImpl implements SoftwareService {
                                 .installDate(installDate)
                                 .lastScannedAt(Instant.now())
                                 .build();
+
+                        entity.setCreatedAt(Instant.now());
+                        entity.setUpdatedAt(Instant.now());
+                        return entity;
                     })
                     .collect(Collectors.toList());
 

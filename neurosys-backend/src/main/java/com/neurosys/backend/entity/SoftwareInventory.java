@@ -37,4 +37,17 @@ public class SoftwareInventory extends BaseEntity {
     @Column(name = "last_scanned_at")
     @Builder.Default
     private Instant lastScannedAt = Instant.now();
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.getCreatedAt() == null) {
+            this.setCreatedAt(Instant.now());
+        }
+        if (this.getUpdatedAt() == null) {
+            this.setUpdatedAt(Instant.now());
+        }
+        if (this.lastScannedAt == null) {
+            this.lastScannedAt = Instant.now();
+        }
+    }
 }
