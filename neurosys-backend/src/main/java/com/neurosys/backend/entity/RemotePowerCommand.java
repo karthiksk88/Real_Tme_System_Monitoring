@@ -1,5 +1,6 @@
 package com.neurosys.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.neurosys.backend.enums.PowerCommandStatus;
 import com.neurosys.backend.enums.PowerCommandType;
 import jakarta.persistence.*;
@@ -20,6 +21,7 @@ public class RemotePowerCommand {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "computer_id", nullable = false)
     private Computer computer;

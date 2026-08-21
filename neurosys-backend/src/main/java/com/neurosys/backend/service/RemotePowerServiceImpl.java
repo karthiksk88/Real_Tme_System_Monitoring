@@ -65,8 +65,6 @@ public class RemotePowerServiceImpl implements RemotePowerService {
                 .requestedBy(requestedBy != null ? requestedBy : "Administrator")
                 .build();
 
-        command.setCreatedAt(Instant.now());
-        command.setUpdatedAt(Instant.now());
         command = commandRepository.save(command);
 
         // Record Audit Log
@@ -93,7 +91,6 @@ public class RemotePowerServiceImpl implements RemotePowerService {
         if (pendingCmd.isPresent()) {
             RemotePowerCommand command = pendingCmd.get();
             command.setStatus(PowerCommandStatus.SENT);
-            command.setUpdatedAt(Instant.now());
             commandRepository.save(command);
             log.info("Delivered power command {} ({}) to agent {}", command.getId(), command.getCommandType(), agentId);
             return mapToCommandDto(command);
@@ -111,14 +108,13 @@ public class RemotePowerServiceImpl implements RemotePowerService {
         if (request.getFailureReason() != null) {
             command.setFailureReason(request.getFailureReason());
         }
-        command.setUpdatedAt(Instant.now());
         commandRepository.save(command);
 
         // Update corresponding Audit record
         RemotePowerAudit audit = RemotePowerAudit.builder()
                 .userName(command.getRequestedBy())
-                .computerName(command.getComputer().getHostname())
-                .computerId(command.getComputer().getId())
+                .computerName(command.getComputer() != null ? command.getComputer().getHostname() : "Computer")
+                .computerId(command.getComputer() != null ? command.getComputer().getId() : "")
                 .action(command.getCommandType())
                 .status(request.getStatus().name())
                 .failureReason(request.getFailureReason())
@@ -139,10 +135,21 @@ public class RemotePowerServiceImpl implements RemotePowerService {
     }
 
     private RemotePowerCommandDto mapToCommandDto(RemotePowerCommand entity) {
+        String compId = "";
+        String compName = "Computer";
+
+        try {
+            if (entity.getComputer() != null) {
+                compId = entity.getComputer().getId();
+                compName = entity.getComputer().getHostname();
+            }
+        } catch (Exception ignored) {
+        }
+
         return RemotePowerCommandDto.builder()
                 .id(entity.getId())
-                .computerId(entity.getComputer().getId())
-                .computerName(entity.getComputer().getHostname())
+                .computerId(compId)
+                .computerName(compName)
                 .commandType(entity.getCommandType())
                 .status(entity.getStatus())
                 .requestedBy(entity.getRequestedBy())
