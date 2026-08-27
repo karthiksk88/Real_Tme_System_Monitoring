@@ -12,21 +12,50 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 4000);
+    const interval = setInterval(fetchDashboardData, 3000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardData = async () => {
     try {
-      const [compRes, alertRes] = await Promise.all([
-        metricsService.getAllComputers().catch(() => ({ data: [] })),
-        metricsService.getActiveAlerts().catch(() => ({ data: [] }))
-      ]);
+      let compList = [];
+      let alertList = [];
 
-      const compList = compRes?.data || (Array.isArray(compRes) ? compRes : []);
-      const alertList = alertRes?.data || (Array.isArray(alertRes) ? alertRes : []);
+      // 1. Fetch Computers with Native Fetch Fallback
+      try {
+        const compRes = await metricsService.getAllComputers();
+        compList = compRes?.data || (Array.isArray(compRes) ? compRes : []);
+      } catch (e) {
+        try {
+          const rawRes = await fetch('/api/v1/computers');
+          if (rawRes.ok) {
+            const rawData = await rawRes.json();
+            compList = rawData?.data || [];
+          }
+        } catch (fetchErr) {
+          console.error('Direct fetch fallback failed', fetchErr);
+        }
+      }
 
-      setComputers(Array.isArray(compList) ? compList : []);
+      // 2. Fetch Alerts with Native Fetch Fallback
+      try {
+        const alertRes = await metricsService.getActiveAlerts();
+        alertList = alertRes?.data || (Array.isArray(alertRes) ? alertRes : []);
+      } catch (e) {
+        try {
+          const rawRes = await fetch('/api/v1/alerts');
+          if (rawRes.ok) {
+            const rawData = await rawRes.json();
+            alertList = rawData?.data || [];
+          }
+        } catch (fetchErr) {
+          console.error('Direct alert fetch failed', fetchErr);
+        }
+      }
+
+      if (Array.isArray(compList) && compList.length > 0) {
+        setComputers(compList);
+      }
       setAlerts(Array.isArray(alertList) ? alertList : []);
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
@@ -52,13 +81,13 @@ const Dashboard = () => {
   const criticalCount = computers.filter(c => c.status === 'CRITICAL' || c.status === 'OFFLINE').length;
   const warningCount = computers.filter(c => c.status === 'WARNING').length;
 
-  const healthyPercent = totalAssets > 0 ? Math.round((activeCount / totalAssets) * 100) : 0;
+  const healthyPercent = totalAssets > 0 ? Math.round((activeCount / totalAssets) * 100) : 100;
   const warningPercent = totalAssets > 0 ? Math.round((warningCount / totalAssets) * 100) : 0;
   const criticalPercent = totalAssets > 0 ? Math.round((criticalCount / totalAssets) * 100) : 0;
 
   // Group real computers by lab
   const labGroups = computers.reduce((acc, c) => {
-    const lab = c.labName || 'General Lab';
+    const lab = c.labName || 'Lab Alpha';
     if (!acc[lab]) acc[lab] = [];
     acc[lab].push(c);
     return acc;
@@ -149,36 +178,42 @@ const Dashboard = () => {
 
       {/* Core Dashboard Areas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Real System Health & Insights */}
+        {/* Left Column: System Health & AI Predictions */}
         <div className="lg:col-span-2 space-y-6">
-          {/* System Health Visual */}
-          <section className="card-elevated p-6 animate-fade-in-up">
-            <h3 className="text-headline-md font-headline-md text-on-surface mb-6 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">donut_large</span>
-              System Health Overview
-            </h3>
-            <div className="space-y-4">
-              <div className="flex justify-between text-label-md font-label-md mb-2">
-                <span className="text-secondary">Network Operational Status</span>
-                <span className="text-on-surface font-medium">{totalAssets > 0 ? `${healthyPercent}% Operational` : 'No Active Endpoints'}</span>
+          {/* System Health Overview */}
+          <section 
+            onClick={() => navigate('/analytics')}
+            className="card-elevated p-6 animate-fade-in-up hover:shadow-md transition-shadow cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-headline-md font-headline-md text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">donut_large</span>
+                System Health Overview
+              </h3>
+              <span className="text-mono-sm font-mono-sm text-secondary">
+                {totalAssets > 0 ? `${activeCount} of ${totalAssets} Endpoints Active` : 'Initializing...'}
+              </span>
+            </div>
+
+            {/* Health Bar Visualization */}
+            <div className="space-y-3">
+              <div className="w-full bg-surface-container-high h-3 rounded-full overflow-hidden flex">
+                <div className="bg-[#10b981] h-full transition-all duration-500" style={{ width: `${healthyPercent}%` }}></div>
+                <div className="bg-[#f59e0b] h-full transition-all duration-500" style={{ width: `${warningPercent}%` }}></div>
+                <div className="bg-error h-full transition-all duration-500" style={{ width: `${criticalPercent}%` }}></div>
               </div>
-              <div className="w-full h-3 bg-surface-container-high rounded-full overflow-hidden flex">
-                <div className="bg-[#10b981] h-full shimmer-effect" style={{ width: `${healthyPercent}%` }} />
-                <div className="bg-[#f59e0b] h-full" style={{ width: `${warningPercent}%` }} />
-                <div className="bg-error h-full" style={{ width: `${criticalPercent}%` }} />
-              </div>
-              <div className="flex gap-6 mt-4 pt-4 border-t border-outline-variant">
-                <div className="flex items-center gap-2">
-                  <span className="status-dot status-healthy animate-pulse-soft"></span>
-                  <span className="text-body-md font-body-md text-secondary">{activeCount} Active</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="status-dot status-warning"></span>
-                  <span className="text-body-md font-body-md text-secondary">{warningCount} Attention</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="status-dot status-critical animate-pulse-soft"></span>
-                  <span className="text-body-md font-body-md text-secondary">{criticalCount} Critical</span>
+
+              <div className="flex items-center justify-between text-mono-sm font-mono-sm pt-2">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1.5 text-on-surface font-bold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]"></span> {activeCount} Active
+                  </span>
+                  <span className="flex items-center gap-1.5 text-on-surface font-bold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]"></span> {warningCount} Attention
+                  </span>
+                  <span className="flex items-center gap-1.5 text-on-surface font-bold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-error"></span> {criticalCount} Critical
+                  </span>
                 </div>
               </div>
             </div>
@@ -292,7 +327,7 @@ const Dashboard = () => {
                   ) : (
                     <tr>
                       <td colSpan="7" className="py-8 text-center text-secondary text-body-md">
-                        No computers connected yet.
+                        Connecting to database...
                       </td>
                     </tr>
                   )}
@@ -318,60 +353,57 @@ const Dashboard = () => {
                 alerts.slice(0, 3).map((alert) => (
                   <div key={alert.id} className="p-4 hover:bg-surface-container-lowest transition-colors flex gap-3">
                     <div className="w-8 h-8 rounded-full bg-error-container flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-error text-[16px]">power_off</span>
+                      <span className="material-symbols-outlined text-error text-[18px]">warning</span>
                     </div>
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-label-md font-label-md bg-error text-on-error px-1.5 py-0.5 rounded">{alert.severity || 'Critical'}</span>
-                        <span className="text-mono-sm font-mono-sm text-secondary">{alert.computerHostname || 'Computer'}</span>
-                      </div>
-                      <p className="text-body-md font-body-md text-on-surface">{alert.message || alert.title}</p>
+                      <h4 className="text-body-md font-body-md font-semibold text-on-surface">{alert.title || 'System Alert'}</h4>
+                      <p className="text-body-md font-body-md text-secondary mt-0.5">{alert.description || alert.message}</p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="p-8 text-center text-secondary text-xs">
-                  <span className="material-symbols-outlined text-[#10b981] text-3xl mb-1 block">check_circle</span>
-                  <span>No active telemetry alerts recorded in database.</span>
+                <div className="p-8 text-center text-secondary text-body-md flex flex-col items-center">
+                  <span className="material-symbols-outlined text-[#10b981] text-3xl mb-2">check_circle</span>
+                  No active telemetry alerts recorded in database.
                 </div>
               )}
             </div>
           </section>
 
-          {/* Real Lab Readiness Overview */}
-          <section className="card-elevated p-4">
-            <h3 className="text-headline-md font-headline-md text-on-surface mb-4 border-b border-outline-variant pb-2">Lab Readiness Overview</h3>
-            <div className="space-y-3">
+          {/* Lab Readiness Overview */}
+          <section className="card-elevated p-6">
+            <h3 
+              onClick={() => navigate('/lab-readiness')}
+              className="text-headline-md font-headline-md text-on-surface mb-4 flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"
+            >
+              <span className="material-symbols-outlined text-primary">fact_check</span>
+              Lab Readiness Overview
+            </h3>
+
+            <div className="space-y-4">
               {Object.keys(labGroups).length > 0 ? (
-                Object.entries(labGroups).map(([labName, comps]) => {
-                  const online = comps.filter(c => c.status === 'ONLINE' || c.status === 'WARNING').length;
-                  const percent = comps.length > 0 ? Math.round((online / comps.length) * 100) : 0;
+                Object.entries(labGroups).map(([labName, labComps]) => {
+                  const labOnline = labComps.filter(c => c.status === 'ONLINE' || c.status === 'WARNING').length;
+                  const labPercent = Math.round((labOnline / labComps.length) * 100);
+
                   return (
                     <div 
                       key={labName}
                       onClick={() => navigate('/lab-readiness')}
-                      className="flex items-center justify-between p-2 hover:bg-surface-container rounded-lg transition-colors cursor-pointer group"
+                      className="p-3 bg-surface-container-low rounded-lg border border-outline-variant space-y-2 hover:border-primary transition-colors cursor-pointer"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-secondary group-hover:text-primary transition-colors">domain</span>
-                        <div>
-                          <div className="text-body-md font-body-md font-semibold text-on-surface">{labName}</div>
-                          <div className="text-label-md font-label-md text-secondary">{comps.length} Computers</div>
-                        </div>
+                      <div className="flex justify-between items-center text-body-md font-body-md font-semibold text-on-surface">
+                        <span>{labName}</span>
+                        <span className="text-mono-sm font-mono-sm text-primary font-bold">{labOnline} / {labComps.length} Ready ({labPercent}%)</span>
                       </div>
-                      <div className="text-right">
-                        <div className={`text-body-md font-body-md font-semibold ${percent >= 90 ? 'text-[#10b981]' : 'text-[#f59e0b]'}`}>
-                          {percent}% Ready
-                        </div>
-                        <div className="w-16 h-1 bg-surface-container-high rounded-full mt-1 ml-auto">
-                          <div className={`h-full rounded-full ${percent >= 90 ? 'bg-[#10b981]' : 'bg-[#f59e0b]'}`} style={{ width: `${percent}%` }}></div>
-                        </div>
+                      <div className="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+                        <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: `${labPercent}%` }}></div>
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <div className="p-4 text-center text-xs text-secondary">
+                <div className="p-4 text-center text-secondary text-body-md">
                   No labs configured yet. Registered computers will appear here grouped by lab.
                 </div>
               )}
