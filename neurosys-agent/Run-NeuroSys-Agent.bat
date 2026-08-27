@@ -1,7 +1,7 @@
 @echo off
 title NeuroSys Cloud Monitoring Agent Daemon
 echo =========================================================
-echo   Connecting NeuroSys Agent to Railway Cloud Server...
+echo   Connecting NeuroSys Agent Daemon to Server...
 echo =========================================================
 
 set "JAR_FILE=%~dp0neurosys-agent-1.0.0-SNAPSHOT-exec.jar"
