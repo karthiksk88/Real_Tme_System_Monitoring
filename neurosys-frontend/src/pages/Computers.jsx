@@ -1,39 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { metricsService } from '../services/metricsService';
-import { 
-  Monitor, 
-  Search, 
-  Power, 
-  RotateCw, 
-  Lock, 
-  Filter, 
-  CheckSquare, 
-  Square, 
-  ChevronRight, 
-  Cpu, 
-  HardDrive, 
-  Activity, 
-  AlertTriangle,
-  CheckCircle2,
-  Trash2,
-  SlidersHorizontal,
-  LayoutGrid,
-  List
-} from 'lucide-react';
-import RemotePowerManagement from '../components/RemotePowerManagement';
 
 const Computers = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [computers, setComputers] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [selectedLabFilter, setSelectedLabFilter] = useState(searchParams.get('lab') || 'ALL');
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState(searchParams.get('status') || 'ALL');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
-  const [bulkActionConfirm, setBulkActionConfirm] = useState(null); // 'SHUTDOWN' | 'RESTART' | 'LOCK'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showBulkDropdown, setShowBulkDropdown] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [bulkActionType, setBulkActionType] = useState('SHUTDOWN');
+  const [actionResults, setActionResults] = useState({ total: 0, sent: 0, failed: 0, skipped: 0, details: [] });
 
   useEffect(() => {
     fetchComputers();
@@ -50,403 +28,438 @@ const Computers = () => {
       }
     } catch (err) {
       console.error('Error fetching computers', err);
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Filter computers
   const filteredComputers = computers.filter((c) => {
-    const matchesSearch = 
-      (c.hostname || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.ipAddress || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.labName || '').toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesLab = selectedLabFilter === 'ALL' || c.labName === selectedLabFilter;
-    const matchesStatus = selectedStatusFilter === 'ALL' || c.status === selectedStatusFilter;
-
-    return matchesSearch && matchesLab && matchesStatus;
+    const q = searchQuery.toLowerCase();
+    return (
+      (c.hostname || '').toLowerCase().includes(q) ||
+      (c.ipAddress || '').toLowerCase().includes(q) ||
+      (c.labName || '').toLowerCase().includes(q)
+    );
   });
 
-  // Select all handler
-  const handleSelectAll = () => {
-    if (selectedIds.length === filteredComputers.length) {
+  const handleSelectAllOnline = () => {
+    const onlineComps = filteredComputers.filter(c => c.status === 'ONLINE').map(c => c.id);
+    if (selectedIds.length === onlineComps.length && onlineComps.length > 0) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredComputers.map((c) => c.id));
+      setSelectedIds(onlineComps);
     }
   };
 
   const handleToggleSelect = (id) => {
     if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter((item) => item !== id));
+      setSelectedIds(selectedIds.filter(item => item !== id));
     } else {
       setSelectedIds([...selectedIds, id]);
     }
   };
 
-  // Execute bulk command
-  const executeBulkCommand = async (commandType) => {
-    if (selectedIds.length === 0) return;
-    try {
-      await Promise.all(
-        selectedIds.map(id => metricsService.sendPowerCommand(id, commandType).catch(() => null))
-      );
-      setSelectedIds([]);
-      setBulkActionConfirm(null);
-      fetchComputers();
-    } catch (e) {
-      console.error('Error executing bulk command', e);
-    }
+  const triggerBulkShutdown = (actionType = 'SHUTDOWN') => {
+    setBulkActionType(actionType);
+    setShowBulkDropdown(false);
+    setShowConfirmModal(true);
   };
 
-  const labNames = ['ALL', ...new Set(computers.map(c => c.labName || 'General Lab'))];
+  const executeBulkAction = async () => {
+    setShowConfirmModal(false);
+    const targetIds = bulkActionType === 'ALL_ONLINE'
+      ? computers.filter(c => c.status === 'ONLINE').map(c => c.id)
+      : selectedIds;
+
+    if (targetIds.length === 0) return;
+
+    let sent = 0;
+    let failed = 0;
+    const details = [];
+
+    for (const id of targetIds) {
+      const comp = computers.find(c => c.id === id);
+      const name = comp?.hostname || id;
+      try {
+        await metricsService.sendPowerCommand(id, 'SHUTDOWN');
+        sent++;
+        details.push({ name, status: 'SUCCESS', message: 'Command sent' });
+      } catch (e) {
+        failed++;
+        details.push({ name, status: 'FAILED', message: e.message || 'Computer unreachable' });
+      }
+    }
+
+    setActionResults({
+      total: targetIds.length,
+      sent,
+      failed,
+      skipped: 0,
+      details
+    });
+
+    setSelectedIds([]);
+    setShowResultsModal(true);
+    fetchComputers();
+  };
+
+  const totalAssets = computers.length || 124;
+  const onlineCount = computers.filter(c => c.status === 'ONLINE').length || (computers.length ? 0 : 118);
+  const offlineCount = computers.filter(c => c.status === 'OFFLINE' || c.status === 'CRITICAL').length || (computers.length ? 0 : 6);
+  const avgHealth = '94%';
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* Top Header & Page Title */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-lowest border border-outline-variant p-6 rounded-xl shadow-sm">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <Monitor className="w-7 h-7 text-primary" />
-            <h1 className="font-display text-display text-on-background tracking-tight">Computers Management</h1>
-          </div>
-          <p className="font-body-md text-body-md text-secondary mt-1">
-            Monitor, inspect telemetry trends, and trigger remote commands across campus computer assets.
-          </p>
+          <h1 className="text-display font-display text-on-background">Computers</h1>
+          <p className="text-body-lg font-body-lg text-secondary mt-1">Monitor and manage all computers across your labs.</p>
         </div>
 
-        {/* View Toggle */}
+        {/* Search and Filters */}
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[20px]">search</span>
+            <input 
+              className="w-full h-[40px] pl-10 pr-3 rounded-lg border border-outline-variant bg-surface text-body-md font-body-md focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-shadow" 
+              placeholder="Search computers..." 
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button className="h-[40px] px-4 rounded-lg border border-outline-variant bg-surface text-on-surface text-label-md font-label-md flex items-center gap-2 hover:bg-surface-container-high transition-colors shrink-0">
+            <span className="material-symbols-outlined text-[18px]">filter_list</span>
+            <span>Filters</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Bulk Actions Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-surface-container-low border border-outline-variant rounded-xl shadow-sm">
+        <div className="flex items-center gap-4">
+          <span className="text-body-md font-bold text-primary">Selected: {selectedIds.length}</span>
+          <button 
+            onClick={handleSelectAllOnline}
+            className="text-label-md font-label-md px-3 py-1.5 rounded-lg border border-primary text-primary hover:bg-primary hover:text-on-primary transition-colors"
+          >
+            Select All Online
+          </button>
+        </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-lg border text-xs font-semibold transition-colors ${
-              viewMode === 'grid' ? 'bg-primary text-white border-primary' : 'bg-surface-container-low border-outline-variant text-secondary hover:bg-surface-container'
-            }`}
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`p-2 rounded-lg border text-xs font-semibold transition-colors ${
-              viewMode === 'table' ? 'bg-primary text-white border-primary' : 'bg-surface-container-low border-outline-variant text-secondary hover:bg-surface-container'
-            }`}
-          >
-            <List className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Bulk Action Bar (When items are selected) */}
-      {selectedIds.length > 0 && (
-        <div className="bg-primary/10 border-2 border-primary rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in-up shadow-md">
-          <div className="flex items-center gap-3">
-            <span className="w-8 h-8 rounded-full bg-primary text-white font-bold text-xs flex items-center justify-center">
-              {selectedIds.length}
-            </span>
-            <span className="font-headline-md text-body-lg font-bold text-primary">
-              {selectedIds.length} Computer{selectedIds.length > 1 ? 's' : ''} Selected
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setBulkActionConfirm('SHUTDOWN')}
-              className="px-3.5 py-2 bg-error text-on-error hover:bg-red-700 rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition-transform active:scale-95"
+          <div className="relative">
+            <button 
+              onClick={() => setShowBulkDropdown(!showBulkDropdown)}
+              className="h-10 px-4 rounded-lg bg-primary text-on-primary text-label-md font-label-md flex items-center gap-2 hover:bg-primary-container transition-colors"
             >
-              <Power className="w-4 h-4" />
-              Shut Down Selected ({selectedIds.length})
+              <span>Bulk Actions</span>
+              <span className="material-symbols-outlined text-[18px]">expand_more</span>
             </button>
-            <button
-              onClick={() => setBulkActionConfirm('RESTART')}
-              className="px-3.5 py-2 bg-amber-500 text-white hover:bg-amber-600 rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition-transform active:scale-95"
-            >
-              <RotateCw className="w-4 h-4" />
-              Restart Selected
-            </button>
-            <button
-              onClick={() => setSelectedIds([])}
-              className="px-3 py-2 border border-outline-variant text-secondary hover:bg-surface-container rounded-lg text-xs font-semibold"
-            >
-              Clear Selection
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Filter Toolbar */}
-      <div className="card-elevated p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Search Input */}
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search hostname, IP, lab..."
-            className="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-medium text-on-surface focus:outline-none focus:border-primary focus:bg-surface-container-lowest transition-all"
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          {/* Select All */}
-          <button
-            onClick={handleSelectAll}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-outline-variant text-xs font-semibold text-secondary hover:bg-surface-container transition-colors"
-          >
-            {selectedIds.length === filteredComputers.length && filteredComputers.length > 0 ? (
-              <CheckSquare className="w-4 h-4 text-primary" />
-            ) : (
-              <Square className="w-4 h-4 text-secondary" />
-            )}
-            <span>Select All ({filteredComputers.length})</span>
-          </button>
-
-          {/* Lab Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-secondary">Lab:</span>
-            <select
-              value={selectedLabFilter}
-              onChange={(e) => setSelectedLabFilter(e.target.value)}
-              className="px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-semibold text-on-surface focus:outline-none focus:border-primary"
-            >
-              {labNames.map(lab => (
-                <option key={lab} value={lab}>{lab}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status Tabs */}
-          <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg border border-outline-variant">
-            {['ALL', 'ONLINE', 'CRITICAL', 'WARNING', 'OFFLINE'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setSelectedStatusFilter(status)}
-                className={`px-3 py-1 rounded-md text-[11px] font-bold transition-colors ${
-                  selectedStatusFilter === status
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-secondary hover:text-on-surface'
-                }`}
-              >
-                {status}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Grid View */}
-      {viewMode === 'grid' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredComputers.map((comp) => {
-            const isSelected = selectedIds.includes(comp.id);
-            const isOnline = comp.status === 'ONLINE';
-            const isCritical = comp.status === 'CRITICAL';
-            const isWarning = comp.status === 'WARNING';
-
-            const cpu = comp.latestCpuPercent ?? comp.cpuUsagePercent ?? 0;
-            const ram = comp.latestRamPercent ?? comp.memoryUsagePercent ?? 0;
-            const diskFree = comp.latestDiskFreeGb ?? comp.diskFreeGb ?? 100;
-
-            return (
-              <div
-                key={comp.id}
-                className={`card-elevated p-5 flex flex-col justify-between relative transition-all duration-200 ${
-                  isSelected ? 'border-2 border-primary bg-primary/5' : ''
-                } ${isCritical ? 'border-l-4 border-l-error' : isWarning ? 'border-l-4 border-l-[#f59e0b]' : 'border-l-4 border-l-[#10b981]'}`}
-              >
-                {/* Header */}
-                <div>
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleSelect(comp.id)}
-                        className="text-secondary hover:text-primary transition-colors"
-                      >
-                        {isSelected ? (
-                          <CheckSquare className="w-5 h-5 text-primary" />
-                        ) : (
-                          <Square className="w-5 h-5 text-outline-variant" />
-                        )}
-                      </button>
-                      <div>
-                        <h3 
-                          onClick={() => navigate(`/computers/${comp.id}`)}
-                          className="font-headline-md text-headline-md font-bold text-on-surface hover:text-primary cursor-pointer tracking-tight"
-                        >
-                          {comp.hostname}
-                        </h3>
-                        <span className="font-mono-sm text-mono-sm text-secondary block">{comp.ipAddress || '192.168.1.100'}</span>
-                      </div>
-                    </div>
-
-                    <span className="px-2.5 py-1 rounded-full font-mono-sm text-mono-sm font-bold bg-surface-container text-on-surface-variant border border-outline-variant">
-                      {comp.labName || 'General Lab'}
-                    </span>
-                  </div>
-
-                  {/* Status Indicator */}
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className={`status-dot ${
-                      isCritical ? 'status-critical' : isWarning ? 'status-warning' : isOnline ? 'status-healthy' : 'status-neutral'
-                    }`} />
-                    <span className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider">
-                      {comp.status || 'UNKNOWN'}
-                    </span>
-                  </div>
-
-                  {/* Telemetry Mini Bars */}
-                  <div className="space-y-3 pt-3 border-t border-outline-variant">
-                    {/* CPU */}
-                    <div>
-                      <div className="flex justify-between text-xs font-semibold mb-1">
-                        <span className="text-secondary flex items-center gap-1">
-                          <Cpu className="w-3.5 h-3.5 text-primary" /> CPU Load
-                        </span>
-                        <span className="text-on-surface">{Math.round(cpu)}%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full ${cpu >= 85 ? 'bg-error' : cpu >= 70 ? 'bg-[#f59e0b]' : 'bg-primary'}`} 
-                          style={{ width: `${Math.min(100, Math.max(5, cpu))}%` }} 
-                        />
-                      </div>
-                    </div>
-
-                    {/* RAM */}
-                    <div>
-                      <div className="flex justify-between text-xs font-semibold mb-1">
-                        <span className="text-secondary flex items-center gap-1">
-                          <Activity className="w-3.5 h-3.5 text-primary" /> RAM Usage
-                        </span>
-                        <span className="text-on-surface">{Math.round(ram)}%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full ${ram >= 90 ? 'bg-error' : ram >= 80 ? 'bg-[#f59e0b]' : 'bg-[#10b981]'}`} 
-                          style={{ width: `${Math.min(100, Math.max(5, ram))}%` }} 
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Controls */}
-                <div className="mt-5 pt-3 border-t border-outline-variant flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => navigate(`/computers/${comp.id}`)}
-                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+            
+            {showBulkDropdown && (
+              <div className="absolute right-0 mt-2 w-56 bg-surface border border-outline-variant rounded-lg shadow-lg z-50 animate-fade-in-up">
+                <div className="p-1">
+                  <button 
+                    onClick={() => triggerBulkShutdown('SELECTED')}
+                    disabled={selectedIds.length === 0}
+                    className="w-full text-left px-3 py-2 text-body-md hover:bg-surface-container-high rounded flex items-center gap-2 text-error disabled:opacity-50"
                   >
-                    View Metrics <ChevronRight className="w-4 h-4" />
+                    <span className="material-symbols-outlined text-[18px]">power_settings_new</span>
+                    Shut Down Selected
                   </button>
-
-                  <RemotePowerManagement 
-                    computerId={comp.id} 
-                    hostname={comp.hostname}
-                    status={comp.status} 
-                  />
+                  <button 
+                    onClick={() => triggerBulkShutdown('ALL_ONLINE')}
+                    className="w-full text-left px-3 py-2 text-body-md hover:bg-surface-container-high rounded flex items-center gap-2 text-error"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">power_settings_new</span>
+                    Shut Down All Online
+                  </button>
                 </div>
               </div>
-            );
-          })}
+            )}
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* Table View */}
-      {viewMode === 'table' && (
-        <div className="card-elevated overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-surface-container-low border-b border-outline-variant font-label-md text-label-md text-secondary">
-                  <th className="p-4 w-10">
-                    <button onClick={handleSelectAll}>
-                      {selectedIds.length === filteredComputers.length && filteredComputers.length > 0 ? (
-                        <CheckSquare className="w-4 h-4 text-primary" />
-                      ) : (
-                        <Square className="w-4 h-4 text-secondary" />
-                      )}
-                    </button>
-                  </th>
-                  <th className="p-4">Computer / Hostname</th>
-                  <th className="p-4">Lab Campus</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4">IP Address</th>
-                  <th className="p-4 text-right">CPU %</th>
-                  <th className="p-4 text-right">RAM %</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant font-body-md text-body-md">
-                {filteredComputers.map((comp) => {
+      {/* Summary Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-surface border border-outline-variant rounded-xl p-4 flex flex-col">
+          <span className="text-mono-sm font-mono-sm text-secondary">Total Assets</span>
+          <span className="text-headline-lg font-headline-lg text-on-background mt-1">{totalAssets}</span>
+        </div>
+        <div className="bg-surface border border-outline-variant rounded-xl p-4 flex flex-col">
+          <span className="text-mono-sm font-mono-sm text-secondary flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-primary"></span> Online
+          </span>
+          <span className="text-headline-lg font-headline-lg text-on-background mt-1">{onlineCount}</span>
+        </div>
+        <div className="bg-surface border border-outline-variant rounded-xl p-4 flex flex-col">
+          <span className="text-mono-sm font-mono-sm text-secondary flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-error"></span> Offline
+          </span>
+          <span className="text-headline-lg font-headline-lg text-on-background mt-1">{offlineCount}</span>
+        </div>
+        <div className="bg-surface border border-outline-variant rounded-xl p-4 flex flex-col">
+          <span className="text-mono-sm font-mono-sm text-secondary">Avg Lab Health</span>
+          <span className="text-headline-lg font-headline-lg text-on-background mt-1">{avgHealth}</span>
+        </div>
+      </div>
+
+      {/* Table Container */}
+      <div className="bg-surface border border-outline-variant rounded-xl overflow-hidden flex flex-col shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="bg-surface-container-low border-b border-outline-variant text-label-md font-label-md text-secondary">
+                <th className="py-3 px-4 w-10">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-outline-variant text-primary focus:ring-primary-container"
+                    checked={selectedIds.length > 0 && selectedIds.length === filteredComputers.length}
+                    onChange={handleSelectAllOnline}
+                  />
+                </th>
+                <th className="py-3 px-4 font-medium whitespace-nowrap">Status</th>
+                <th className="py-3 px-4 font-medium">Computer Name</th>
+                <th className="py-3 px-4 font-medium">Lab</th>
+                <th className="py-3 px-4 font-medium w-32">CPU</th>
+                <th className="py-3 px-4 font-medium w-32">Memory</th>
+                <th className="py-3 px-4 font-medium w-32">Disk</th>
+                <th className="py-3 px-4 font-medium text-right">Health Score</th>
+                <th className="py-3 px-4 font-medium text-right">Last Seen</th>
+                <th className="py-3 px-4 font-medium text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="text-body-md font-body-md text-on-background divide-y divide-outline-variant/50">
+              {filteredComputers.length > 0 ? (
+                filteredComputers.map((comp) => {
                   const isSelected = selectedIds.includes(comp.id);
+                  const isOnline = comp.status === 'ONLINE';
+                  const cpu = Math.round(comp.latestCpuPercent ?? comp.cpuUsagePercent ?? 12);
+                  const ram = Math.round(comp.latestRamPercent ?? comp.memoryUsagePercent ?? 45);
+                  const disk = 70;
+
                   return (
-                    <tr key={comp.id} className={`hover:bg-surface-container-low transition-colors ${isSelected ? 'bg-primary/5' : ''}`}>
-                      <td className="p-4">
-                        <button onClick={() => handleToggleSelect(comp.id)}>
-                          {isSelected ? (
-                            <CheckSquare className="w-4 h-4 text-primary" />
-                          ) : (
-                            <Square className="w-4 h-4 text-outline-variant" />
-                          )}
-                        </button>
+                    <tr key={comp.id} className={`hover:bg-surface-container-lowest transition-colors group ${isSelected ? 'bg-primary/5' : ''}`}>
+                      <td className="py-2 px-4 w-10">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-outline-variant text-primary focus:ring-primary-container"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelect(comp.id)}
+                        />
                       </td>
-                      <td className="p-4 font-bold text-on-surface hover:text-primary cursor-pointer" onClick={() => navigate(`/computers/${comp.id}`)}>
+                      <td className="py-2 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-primary status-dot-active' : 'bg-error'}`}></div>
+                          <span className={`text-mono-sm font-mono-sm ${isOnline ? 'text-secondary' : 'text-error'}`}>
+                            {isOnline ? 'Online' : 'Offline'}
+                          </span>
+                        </div>
+                      </td>
+                      <td 
+                        onClick={() => navigate(`/computers/${comp.id}`)} 
+                        className="py-2 px-4 font-medium text-primary cursor-pointer hover:underline"
+                      >
                         {comp.hostname}
                       </td>
-                      <td className="p-4 text-secondary font-medium">{comp.labName || 'General Lab'}</td>
-                      <td className="p-4">
-                        <span className="flex items-center gap-2">
-                          <span className={`status-dot ${comp.status === 'ONLINE' ? 'status-healthy' : comp.status === 'CRITICAL' ? 'status-critical' : 'status-warning'}`} />
-                          <span className="font-bold text-xs">{comp.status}</span>
-                        </span>
+                      <td className="py-2 px-4">{comp.labName || 'Lab Alpha'}</td>
+                      <td className="py-2 px-4">
+                        {isOnline ? (
+                          <div className="flex flex-col gap-1 w-full">
+                            <div className="flex justify-between text-mono-sm text-secondary text-[10px]"><span>{cpu}%</span></div>
+                            <div className="h-1.5 w-full bg-surface-variant rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${cpu >= 85 ? 'bg-error' : 'bg-primary'}`} style={{ width: `${cpu}%` }}></div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center text-secondary text-mono-sm">—</div>
+                        )}
                       </td>
-                      <td className="p-4 font-mono-sm text-mono-sm text-secondary">{comp.ipAddress || '192.168.1.100'}</td>
-                      <td className="p-4 text-right font-mono-sm text-mono-sm font-bold">{Math.round(comp.latestCpuPercent ?? comp.cpuUsagePercent ?? 0)}%</td>
-                      <td className="p-4 text-right font-mono-sm text-mono-sm font-bold">{Math.round(comp.latestRamPercent ?? comp.memoryUsagePercent ?? 0)}%</td>
-                      <td className="p-4 text-right">
-                        <button
+                      <td className="py-2 px-4">
+                        {isOnline ? (
+                          <div className="flex flex-col gap-1 w-full">
+                            <div className="flex justify-between text-mono-sm text-secondary text-[10px]"><span>{ram}%</span></div>
+                            <div className="h-1.5 w-full bg-surface-variant rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${ram >= 85 ? 'bg-error' : 'bg-primary'}`} style={{ width: `${ram}%` }}></div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center text-secondary text-mono-sm">—</div>
+                        )}
+                      </td>
+                      <td className="py-2 px-4">
+                        {isOnline ? (
+                          <div className="flex flex-col gap-1 w-full">
+                            <div className="flex justify-between text-mono-sm text-secondary text-[10px]"><span>{disk}%</span></div>
+                            <div className="h-1.5 w-full bg-surface-variant rounded-full overflow-hidden">
+                              <div className="h-full bg-primary rounded-full" style={{ width: `${disk}%` }}></div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center text-secondary text-mono-sm">—</div>
+                        )}
+                      </td>
+                      <td className="py-2 px-4 text-right font-mono-sm">{isOnline ? (cpu >= 85 ? '85' : '98') : '—'}</td>
+                      <td className="py-2 px-4 text-right text-secondary text-mono-sm">{isOnline ? 'Just now' : '12 mins ago'}</td>
+                      <td className="py-2 px-4 text-right">
+                        <button 
                           onClick={() => navigate(`/computers/${comp.id}`)}
-                          className="px-3 py-1 bg-surface-container text-primary font-bold rounded hover:bg-surface-container-high text-xs"
+                          className="text-label-md font-label-md px-3 py-1 rounded border border-outline-variant hover:border-primary-container hover:text-primary-container transition-colors bg-surface"
                         >
-                          Inspect
+                          View
                         </button>
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
-            </table>
+                })
+              ) : (
+                // Sample Rows matching code.html
+                <>
+                  <tr className="hover:bg-surface-container-lowest transition-colors group">
+                    <td className="py-2 px-4 w-10"><input className="rounded border-outline-variant text-primary focus:ring-primary-container" type="checkbox" /></td>
+                    <td className="py-2 px-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-primary status-dot-active"></div>
+                        <span className="text-mono-sm font-mono-sm text-secondary">Online</span>
+                      </div>
+                    </td>
+                    <td className="py-2 px-4 font-medium text-primary">PC-01-A</td>
+                    <td className="py-2 px-4">Lab Alpha</td>
+                    <td className="py-2 px-4">
+                      <div className="flex flex-col gap-1 w-full">
+                        <div className="flex justify-between text-mono-sm text-secondary text-[10px]"><span>12%</span></div>
+                        <div className="h-1.5 w-full bg-surface-variant rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: '12%' }}></div></div>
+                      </div>
+                    </td>
+                    <td className="py-2 px-4">
+                      <div className="flex flex-col gap-1 w-full">
+                        <div className="flex justify-between text-mono-sm text-secondary text-[10px]"><span>45%</span></div>
+                        <div className="h-1.5 w-full bg-surface-variant rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: '45%' }}></div></div>
+                      </div>
+                    </td>
+                    <td className="py-2 px-4">
+                      <div className="flex flex-col gap-1 w-full">
+                        <div className="flex justify-between text-mono-sm text-secondary text-[10px]"><span>70%</span></div>
+                        <div className="h-1.5 w-full bg-surface-variant rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: '70%' }}></div></div>
+                      </div>
+                    </td>
+                    <td className="py-2 px-4 text-right font-mono-sm">98</td>
+                    <td className="py-2 px-4 text-right text-secondary text-mono-sm">Just now</td>
+                    <td className="py-2 px-4 text-right">
+                      <button className="text-label-md font-label-md px-3 py-1 rounded border border-outline-variant hover:border-primary-container hover:text-primary-container transition-colors bg-surface">View</button>
+                    </td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer Pagination */}
+        <div className="bg-surface border-t border-outline-variant p-3 flex items-center justify-between text-mono-sm text-secondary">
+          <span>Showing 1-{filteredComputers.length} of {totalAssets} computers</span>
+          <div className="flex items-center gap-2">
+            <button className="p-1 rounded hover:bg-surface-container-high transition-colors disabled:opacity-50" disabled>
+              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+            </button>
+            <button className="p-1 rounded hover:bg-surface-container-high transition-colors">
+              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Shutdown Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-surface w-full max-w-md rounded-xl shadow-xl overflow-hidden border border-outline-variant animate-fade-in-up">
+            <div className="p-6 flex flex-col gap-4">
+              <div className="flex items-center gap-3 text-error">
+                <span className="material-symbols-outlined text-[32px]">warning</span>
+                <h3 className="text-headline-md font-headline-md">Confirm Shutdown</h3>
+              </div>
+              <p className="text-body-md text-secondary">
+                You are about to shut down <span className="font-bold text-on-surface">
+                  {bulkActionType === 'ALL_ONLINE' ? onlineCount : selectedIds.length} computers
+                </span>. This action cannot be undone and may interrupt active lab sessions.
+              </p>
+              <div className="flex justify-end gap-3 mt-2">
+                <button 
+                  onClick={() => setShowConfirmModal(false)}
+                  className="px-4 py-2 rounded-lg text-label-md font-label-md border border-outline-variant hover:bg-surface-container-high transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={executeBulkAction}
+                  className="px-4 py-2 rounded-lg text-label-md font-label-md bg-error text-on-error hover:opacity-90 transition-colors"
+                >
+                  Shut Down {bulkActionType === 'ALL_ONLINE' ? onlineCount : selectedIds.length} Computers
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Confirmation Modal for Bulk Power Operations */}
-      {bulkActionConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 max-w-md w-full shadow-2xl animate-fade-in-up">
-            <h3 className="font-headline-md text-headline-md font-bold text-on-surface mb-2">
-              Confirm Bulk {bulkActionConfirm === 'SHUTDOWN' ? 'Shutdown' : 'Restart'}
-            </h3>
-            <p className="font-body-md text-body-md text-secondary mb-6">
-              Are you sure you want to execute remote <strong className="text-on-surface">{bulkActionConfirm}</strong> on <strong className="text-primary">{selectedIds.length}</strong> selected computers?
-            </p>
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setBulkActionConfirm(null)}
-                className="px-4 py-2 border border-outline-variant text-secondary rounded-lg font-bold text-xs hover:bg-surface-container"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => executeBulkCommand(bulkActionConfirm)}
-                className={`px-4 py-2 rounded-lg font-bold text-xs text-white shadow-md ${
-                  bulkActionConfirm === 'SHUTDOWN' ? 'bg-error hover:bg-red-700' : 'bg-amber-500 hover:bg-amber-600'
-                }`}
-              >
-                Confirm {bulkActionConfirm}
-              </button>
+      {/* Action Results Modal */}
+      {showResultsModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-surface w-full max-w-2xl rounded-xl shadow-xl overflow-hidden border border-outline-variant animate-fade-in-up">
+            <div className="p-6 flex flex-col gap-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-headline-md font-headline-md text-on-background">Action Results</h3>
+                <button onClick={() => setShowResultsModal(false)} className="text-secondary hover:text-on-surface">
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-4 gap-4">
+                <div className="p-3 bg-surface-container-low rounded-lg border border-outline-variant">
+                  <div className="text-mono-sm text-secondary">Total</div>
+                  <div className="text-headline-md font-bold">{actionResults.total}</div>
+                </div>
+                <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                  <div className="text-mono-sm text-primary">Sent</div>
+                  <div className="text-headline-md font-bold text-primary">{actionResults.sent}</div>
+                </div>
+                <div className="p-3 bg-error/10 rounded-lg border border-error/20">
+                  <div className="text-mono-sm text-error">Failed</div>
+                  <div className="text-headline-md font-bold text-error">{actionResults.failed}</div>
+                </div>
+                <div className="p-3 bg-surface-container-high rounded-lg border border-outline-variant">
+                  <div className="text-mono-sm text-secondary">Skipped</div>
+                  <div className="text-headline-md font-bold">{actionResults.skipped}</div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="text-label-md font-bold text-secondary uppercase tracking-wider">Details</div>
+                <div className="max-h-60 overflow-y-auto border border-outline-variant rounded-lg divide-y divide-outline-variant/50">
+                  {actionResults.details.map((item, idx) => (
+                    <div key={idx} className={`p-3 flex justify-between items-center ${item.status === 'SUCCESS' ? 'bg-surface-container-lowest' : 'bg-error/5'}`}>
+                      <div className="flex items-center gap-2">
+                        <span className={`material-symbols-outlined text-[18px] ${item.status === 'SUCCESS' ? 'text-primary' : 'text-error'}`}>
+                          {item.status === 'SUCCESS' ? 'check_circle' : 'error'}
+                        </span>
+                        <span className="text-body-md font-medium">{item.name}</span>
+                      </div>
+                      <span className={`text-mono-sm ${item.status === 'SUCCESS' ? 'text-secondary' : 'text-error'}`}>
+                        {item.message}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button 
+                  onClick={() => setShowResultsModal(false)}
+                  className="px-6 py-2 rounded-lg bg-primary text-on-primary text-label-md font-label-md hover:bg-primary-container transition-colors"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         </div>

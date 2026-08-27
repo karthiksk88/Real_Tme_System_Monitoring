@@ -1,42 +1,43 @@
 import React, { useState } from 'react';
-import { Search, RefreshCw, ChevronDown, Menu, Bell, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const Header = ({ onRefresh, selectedLab, onSelectLab }) => {
+const Header = ({ selectedLab, onSelectLab }) => {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
   const [showLabDropdown, setShowLabDropdown] = useState(false);
 
   const labs = ['All Campuses', 'General Lab', 'Computer Lab A', 'Computer Lab B', 'Hardware Lab'];
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      navigate(`/computers?search=${encodeURIComponent(searchTerm.trim())}`);
-    }
-  };
-
   return (
-    <header className="bg-surface/90 text-primary font-headline-md text-headline-md w-full h-16 border-b border-outline-variant sticky top-0 right-0 flex items-center justify-between px-container-padding z-30 shrink-0 backdrop-blur-md">
-      {/* Left Section: Brand / Mobile menu / Lab Selector */}
+    <header className="bg-surface text-primary font-headline-md text-headline-md w-full h-16 border-b border-outline-variant sticky top-0 right-0 flex items-center justify-between px-gutter z-30 shrink-0">
       <div className="flex items-center gap-4">
         {/* Mobile Menu Button */}
-        <button className="md:hidden p-2 rounded-full text-secondary hover:bg-surface-container-high transition-transform active:scale-95">
-          <Menu className="w-5 h-5" />
+        <button className="md:hidden p-2 rounded-full text-secondary hover:bg-secondary-container transition-transform scale-95 active:scale-90">
+          <span className="material-symbols-outlined">menu</span>
         </button>
 
+        {/* Brand Anchor */}
+        <div 
+          onClick={() => navigate('/dashboard')}
+          className="text-headline-lg font-headline-lg font-black text-primary flex items-center gap-2 cursor-pointer"
+        >
+          <span className="material-symbols-outlined icon-fill text-[28px]">biotech</span>
+          NeuroSys
+        </div>
+
         {/* Contextual Lab Selector (Desktop) */}
-        <div className="relative">
-          <button
+        <div className="relative hidden lg:block ml-8">
+          <div
             onClick={() => setShowLabDropdown(!showLabDropdown)}
-            className="flex items-center gap-2 bg-surface-container-low border border-outline-variant rounded-lg px-3.5 py-1.5 hover:border-primary transition-colors text-xs font-semibold text-on-surface"
+            className="flex items-center bg-surface-container-low border border-outline-variant rounded-lg px-3 py-1.5 cursor-pointer hover:border-primary-fixed-dim transition-colors"
           >
-            <span>{selectedLab || 'All Campuses'}</span>
-            <ChevronDown className="w-4 h-4 text-secondary" />
-          </button>
+            <span className="text-body-md font-body-md text-on-surface mr-2">
+              {selectedLab || 'All Campuses'}
+            </span>
+            <span className="material-symbols-outlined text-[18px] text-secondary">expand_more</span>
+          </div>
 
           {showLabDropdown && (
-            <div className="absolute left-0 mt-1 w-48 bg-surface-container-lowest border border-outline-variant rounded-lg shadow-lg py-1 z-50 animate-fade-in-up">
+            <div className="absolute left-0 mt-1 w-48 bg-surface border border-outline-variant rounded-lg shadow-lg py-1 z-50 animate-fade-in-up">
               {labs.map((lab) => (
                 <button
                   key={lab}
@@ -54,38 +55,15 @@ const Header = ({ onRefresh, selectedLab, onSelectLab }) => {
         </div>
       </div>
 
-      {/* Center Section: Search Bar */}
-      <form onSubmit={handleSearchSubmit} className="hidden sm:flex items-center max-w-md w-full mx-4">
-        <div className="relative w-full">
-          <Search className="w-4 h-4 text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search labs, computers, IP addresses..."
-            className="w-full pl-10 pr-4 py-1.5 bg-surface-container-low border border-outline-variant rounded-full text-xs font-medium text-on-surface focus:outline-none focus:border-primary focus:bg-surface-container-lowest transition-all shadow-sm"
-          />
-        </div>
-      </form>
-
-      {/* Right Section: System Live Status & Quick Actions */}
-      <div className="flex items-center gap-3">
-        {/* System Active Badge */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 status-dot-active" />
-          <span className="text-[11px] font-bold text-emerald-700 tracking-wider uppercase">System Live</span>
-        </div>
-
-        {/* Refresh Button */}
-        {onRefresh && (
-          <button
-            onClick={onRefresh}
-            title="Refresh Data"
-            className="p-2 rounded-full border border-outline-variant text-secondary hover:bg-surface-container hover:text-primary transition-colors hover:rotate-180 duration-500"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        )}
+      <div className="flex items-center gap-2">
+        {/* Search Action */}
+        <button
+          onClick={() => navigate('/computers')}
+          className="flex items-center gap-2 px-4 py-2 rounded-full text-secondary hover:bg-secondary-container transition-transform scale-95 active:scale-90 font-label-md text-label-md"
+        >
+          <span className="material-symbols-outlined text-[20px]">search</span>
+          <span className="hidden sm:inline">Search Labs</span>
+        </button>
       </div>
     </header>
   );
