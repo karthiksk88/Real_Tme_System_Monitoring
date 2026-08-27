@@ -6,11 +6,11 @@ import AIAssistantWidget from './AIAssistantWidget';
 
 const Layout = () => {
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen bg-background text-on-background font-body-md antialiased selection:bg-primary-container selection:text-white">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+      <div className="flex-1 ml-0 md:ml-sidebar-width flex flex-col min-w-0 h-screen overflow-hidden">
         <Header />
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto p-4 md:p-container-padding">
           <Outlet />
         </main>
       </div>

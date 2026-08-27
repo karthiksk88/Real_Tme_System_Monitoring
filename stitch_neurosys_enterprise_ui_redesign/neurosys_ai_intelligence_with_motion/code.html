@@ -1,0 +1,341 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>AI Intelligence - NeuroSys</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=Inter:wght@100..900&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#d0e1fb",
+                        "on-background": "#1b1b24",
+                        "tertiary-container": "#a44100",
+                        "tertiary-fixed": "#ffdbcc",
+                        "surface-bright": "#fcf8ff",
+                        "surface-tint": "#4d44e3",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "primary-fixed": "#e2dfff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface-variant": "#464555",
+                        "surface-container-highest": "#e4e1ee",
+                        "surface-container-high": "#eae6f4",
+                        "secondary-fixed": "#d3e4fe",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "outline-variant": "#c7c4d8",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-tertiary-fixed": "#351000",
+                        "on-primary-container": "#dad7ff",
+                        "on-secondary-fixed": "#0b1c30",
+                        "on-tertiary": "#ffffff",
+                        "surface": "#fcf8ff",
+                        "on-tertiary-container": "#ffd2be",
+                        "on-surface": "#1b1b24",
+                        "on-primary-fixed": "#0f0069",
+                        "surface-container-low": "#f5f2ff",
+                        "inverse-on-surface": "#f3effc",
+                        "surface-container": "#f0ecf9",
+                        "background": "#fcf8ff",
+                        "tertiary": "#7e3000",
+                        "secondary": "#505f76",
+                        "primary-container": "#4f46e5",
+                        "surface-dim": "#dcd8e5",
+                        "inverse-surface": "#302f39",
+                        "primary": "#3525cd",
+                        "inverse-primary": "#c3c0ff",
+                        "on-secondary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "outline": "#777587",
+                        "surface-variant": "#e4e1ee",
+                        "on-secondary-container": "#54647a",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "primary-fixed-dim": "#c3c0ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-collapsed": "72px",
+                        "unit": "4px",
+                        "container-padding": "24px",
+                        "gutter": "16px",
+                        "sidebar-width": "260px"
+                    },
+                    "fontFamily": {
+                        "mono-sm": ["Geist"],
+                        "headline-lg": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "display": ["Geist"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Geist"]
+                    },
+                    "fontSize": {
+                        "mono-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "display": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }]
+                    },
+                    "animation": {
+                        "fade-in-up": "fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+                        "pulse-risk": "pulseRisk 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                        "shimmer": "shimmer 2.5s infinite linear"
+                    },
+                    "keyframes": {
+                        "fadeInUp": {
+                            "0%": { opacity: "0", transform: "translateY(20px)" },
+                            "100%": { opacity: "1", transform: "translateY(0)" }
+                        },
+                        "pulseRisk": {
+                            "0%, 100%": { opacity: "1" },
+                            "50%": { opacity: ".6", transform: "scale(1.05)" }
+                        },
+                        "shimmer": {
+                            "0%": { transform: "translateX(-100%)" },
+                            "100%": { transform: "translateX(100%)" }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #fcf8ff; color: #1b1b24; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .icon-fill { font-variation-settings: 'FILL' 1; }
+        .stagger-1 { animation-delay: 100ms; opacity: 0; }
+        .stagger-2 { animation-delay: 200ms; opacity: 0; }
+        .stagger-3 { animation-delay: 300ms; opacity: 0; }
+        .stagger-4 { animation-delay: 400ms; opacity: 0; }
+        
+        .shimmer-effect {
+            position: relative;
+            overflow: hidden;
+        }
+        .shimmer-effect::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.2) 50%,
+                transparent 100%
+            );
+            transform: translateX(-100%);
+            animation: shimmer 3s infinite linear;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="flex min-h-screen bg-background text-on-surface font-body-md">
+<!-- Navigation Drawer (Desktop) -->
+<aside class="hidden md:flex flex-col h-full py-container-padding gap-unit bg-surface dark:bg-surface-container-low text-primary dark:text-primary-fixed-dim font-label-md text-label-md fixed left-0 top-0 w-sidebar-width border-r border-outline-variant dark:border-outline z-20">
+<div class="px-container-padding mb-6">
+<h2 class="font-headline-md text-headline-md text-primary">NeuroSys Admin</h2>
+</div>
+<nav class="flex flex-col gap-1 px-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Overview
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">desktop_windows</span>
+                Computers
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">warning</span>
+                Alerts
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+                Software Inventory
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">fact_check</span>
+                Lab Readiness
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-primary bg-secondary-container/30 font-bold hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined icon-fill">psychology</span>
+                AI Intelligence
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">history</span>
+                Activity / Audit
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out mt-auto" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+</nav>
+</aside>
+<main class="flex-1 md:ml-sidebar-width w-full flex flex-col relative z-0">
+<!-- TopAppBar (Mobile & Desktop) -->
+<header class="flex justify-between items-center px-container-padding h-16 w-full sticky top-0 bg-surface dark:bg-surface-container-low text-primary dark:text-primary-fixed font-headline-md text-headline-md border-b border-outline-variant dark:border-outline z-10 transition-colors duration-200">
+<div class="flex items-center gap-4">
+<button class="md:hidden p-2 text-on-surface-variant hover:bg-secondary-container/50 rounded-full transition-colors">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<span class="font-headline-lg text-headline-lg text-primary md:hidden">NeuroSys</span>
+</div>
+<button class="p-2 text-on-surface-variant hover:bg-secondary-container/50 rounded-full transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</header>
+<div class="p-container-padding max-w-7xl mx-auto w-full space-y-6">
+<!-- Page Header -->
+<div class="mb-8">
+<h1 class="font-display text-display text-on-background mb-2">AI Intelligence</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Predictive analytics and system risk modeling.</p>
+</div>
+<!-- Dashboard Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- System Risk Overview (Bento Box 1) -->
+<div class="lg:col-span-1 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg animate-fade-in-up stagger-1">
+<div>
+<div class="flex items-center gap-2 text-on-surface-variant mb-4">
+<span class="material-symbols-outlined text-primary">warning</span>
+<span class="font-label-md text-label-md uppercase tracking-wider">Fleet Risk Score</span>
+</div>
+<div class="font-display text-display text-error mb-1 animate-pulse-risk inline-block">12%</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Overall risk of critical failure across all managed labs within the next 30 days.</p>
+</div>
+<div class="mt-6 pt-4 border-t border-outline-variant flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface-variant">Trend:</span>
+<div class="flex items-center text-primary font-label-md text-label-md">
+<span class="material-symbols-outlined text-[16px] mr-1">trending_down</span>
+                            -2.4% from last week
+                        </div>
+</div>
+</div>
+<!-- Performance Trends (Bento Box 2) -->
+<div class="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg flex flex-col animate-fade-in-up stagger-2">
+<div class="flex items-center gap-2 text-on-surface-variant mb-6">
+<span class="material-symbols-outlined text-primary">insights</span>
+<span class="font-label-md text-label-md uppercase tracking-wider">Performance Trends</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6 flex-1">
+<div>
+<div class="font-headline-md text-headline-md text-on-surface mb-2">Predicted Failures</div>
+<div class="font-display text-display text-tertiary-container mb-2">4</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Machines showing high probability of hardware or critical software failure.</p>
+</div>
+<div>
+<div class="font-headline-md text-headline-md text-on-surface mb-2">Efficiency Insights</div>
+<div class="font-display text-display text-primary mb-2">84%</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Average resource utilization efficiency. 16% of fleet is underutilized.</p>
+</div>
+</div>
+</div>
+<!-- Computer Prediction Cards -->
+<div class="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg animate-fade-in-up stagger-3">
+<div class="flex items-center gap-2 text-on-surface-variant mb-6">
+<span class="material-symbols-outlined text-primary">computer</span>
+<span class="font-label-md text-label-md uppercase tracking-wider">High Risk Predictions</span>
+</div>
+<div class="space-y-4">
+<!-- Card 1 -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border border-outline-variant rounded-DEFAULT bg-surface-bright gap-4 transition-all hover:bg-surface-container-lowest hover:border-primary/30">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-error-container text-on-error-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">memory</span>
+</div>
+<div>
+<div class="font-headline-md text-headline-md text-on-surface">PC-18</div>
+<div class="font-body-md text-body-md text-error flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-error animate-pulse-risk"></div>
+                                        Increasing Performance Risk
+                                    </div>
+</div>
+</div>
+<div class="grid grid-cols-2 sm:flex gap-4 sm:gap-8 w-full sm:w-auto">
+<div>
+<span class="block font-label-md text-label-md text-on-surface-variant">Reason</span>
+<span class="font-body-md text-body-md">Memory usage trend</span>
+</div>
+<div>
+<span class="block font-label-md text-label-md text-on-surface-variant">Confidence</span>
+<span class="font-body-md text-body-md font-bold">89%</span>
+</div>
+<div class="col-span-2 sm:col-span-1">
+<span class="block font-label-md text-label-md text-on-surface-variant">Timeframe</span>
+<span class="font-body-md text-body-md">10-14 days</span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border border-outline-variant rounded-DEFAULT bg-surface-bright gap-4 transition-all hover:bg-surface-container-lowest hover:border-primary/30">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">hard_drive</span>
+</div>
+<div>
+<div class="font-headline-md text-headline-md text-on-surface">LAB-A-04</div>
+<div class="font-body-md text-body-md text-tertiary-container flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></div>
+                                        Storage Degradation
+                                    </div>
+</div>
+</div>
+<div class="grid grid-cols-2 sm:flex gap-4 sm:gap-8 w-full sm:w-auto">
+<div>
+<span class="block font-label-md text-label-md text-on-surface-variant">Reason</span>
+<span class="font-body-md text-body-md">Read/Write errors</span>
+</div>
+<div>
+<span class="block font-label-md text-label-md text-on-surface-variant">Confidence</span>
+<span class="font-body-md text-body-md font-bold">76%</span>
+</div>
+<div class="col-span-2 sm:col-span-1">
+<span class="block font-label-md text-label-md text-on-surface-variant">Timeframe</span>
+<span class="font-body-md text-body-md">21-30 days</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- AI Recommendations -->
+<div class="lg:col-span-1 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg flex flex-col animate-fade-in-up stagger-4 shimmer-effect">
+<div class="flex items-center gap-2 text-on-surface-variant mb-6 relative z-10">
+<span class="material-symbols-outlined text-primary">lightbulb</span>
+<span class="font-label-md text-label-md uppercase tracking-wider">AI Recommendations</span>
+</div>
+<div class="space-y-4 flex-1 relative z-10">
+<div class="p-4 bg-secondary-container/20 rounded-DEFAULT border border-secondary-container">
+<div class="font-label-md text-label-md font-bold text-primary mb-1">High Priority</div>
+<p class="font-body-md text-body-md text-on-surface mb-3">Re-image 3 computers in Lab B to improve overall lab performance score.</p>
+<button class="bg-primary text-on-primary font-label-md text-label-md px-4 py-2 rounded-DEFAULT w-full hover:bg-primary/90 transition-colors">Schedule Re-image</button>
+</div>
+<div class="p-4 bg-surface-container-high rounded-DEFAULT border border-outline-variant">
+<div class="font-label-md text-label-md text-on-surface-variant mb-1">Optimization</div>
+<p class="font-body-md text-body-md text-on-surface">Update graphics drivers on 12 machines showing rendering anomalies.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

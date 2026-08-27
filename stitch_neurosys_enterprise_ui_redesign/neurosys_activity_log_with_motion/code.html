@@ -1,0 +1,281 @@
+<!DOCTYPE html><html class="h-full" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Activity / Audit Log - NeuroSys</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-400-normal.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-500-normal.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-600-normal.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-700-normal.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    keyframes: {
+                        'slide-in-right': {
+                            '0%': { transform: 'translateX(20px)', opacity: '0' },
+                            '100%': { transform: 'translateX(0)', opacity: '1' },
+                        },
+                        'fade-in': {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        'pulse-subtle': {
+                            '0%, 100%': { opacity: '1' },
+                            '50%': { opacity: '0.65' },
+                        }
+                    },
+                    animation: {
+                        'slide-in-right': 'slide-in-right 0.5s ease-out both',
+                        'fade-in': 'fade-in 0.5s ease-out both',
+                        'pulse-subtle': 'pulse-subtle 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    "colors": {
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#d0e1fb",
+                        "on-background": "#1b1b24",
+                        "tertiary-container": "#a44100",
+                        "tertiary-fixed": "#ffdbcc",
+                        "surface-bright": "#fcf8ff",
+                        "surface-tint": "#4d44e3",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "primary-fixed": "#e2dfff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface-variant": "#464555",
+                        "surface-container-highest": "#e4e1ee",
+                        "surface-container-high": "#eae6f4",
+                        "secondary-fixed": "#d3e4fe",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "outline-variant": "#c7c4d8",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-tertiary-fixed": "#351000",
+                        "on-primary-container": "#dad7ff",
+                        "on-secondary-fixed": "#0b1c30",
+                        "on-tertiary": "#ffffff",
+                        "surface": "#fcf8ff",
+                        "on-tertiary-container": "#ffd2be",
+                        "on-surface": "#1b1b24",
+                        "on-primary-fixed": "#0f0069",
+                        "surface-container-low": "#f5f2ff",
+                        "inverse-on-surface": "#f3effc",
+                        "surface-container": "#f0ecf9",
+                        "background": "#fcf8ff",
+                        "tertiary": "#7e3000",
+                        "secondary": "#505f76",
+                        "primary-container": "#4f46e5",
+                        "surface-dim": "#dcd8e5",
+                        "inverse-surface": "#302f39",
+                        "primary": "#3525cd",
+                        "inverse-primary": "#c3c0ff",
+                        "on-secondary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "outline": "#777587",
+                        "surface-variant": "#e4e1ee",
+                        "on-secondary-container": "#54647a",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "primary-fixed-dim": "#c3c0ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-collapsed": "72px",
+                        "unit": "4px",
+                        "container-padding": "24px",
+                        "gutter": "16px",
+                        "sidebar-width": "260px"
+                    },
+                    "fontFamily": {
+                        "mono-sm": ["Geist"],
+                        "headline-lg": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "display": ["Geist"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Geist"]
+                    },
+                    "fontSize": {
+                        "mono-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "display": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface h-full flex flex-col font-body-md antialiased overflow-hidden">
+<!-- TopAppBar -->
+<header class="w-full sticky top-0 flex justify-between items-center px-container-padding h-16 border-b border-outline-variant bg-surface z-50">
+<div class="flex items-center gap-gutter">
+<button class="md:hidden text-primary transition-colors duration-200 hover:bg-secondary-container/50 p-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<span class="font-headline-lg text-headline-lg text-primary">NeuroSys</span>
+</div>
+<button class="text-primary transition-colors duration-200 hover:bg-secondary-container/50 p-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<!-- NavigationDrawer -->
+<aside class="hidden md:flex flex-col fixed left-0 top-16 h-[calc(100vh-4rem)] w-sidebar-width border-r border-outline-variant bg-surface py-container-padding gap-unit overflow-y-auto z-40">
+<div class="px-container-padding mb-6">
+<h2 class="font-headline-md text-headline-md text-primary">NeuroSys Admin</h2>
+</div>
+<nav class="flex flex-col gap-1 px-4">
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="dashboard">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="desktop_windows">desktop_windows</span>
+<span>Computers</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="warning">warning</span>
+<span>Alerts</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="inventory_2">inventory_2</span>
+<span>Software Inventory</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="fact_check">fact_check</span>
+<span>Lab Readiness</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="psychology">psychology</span>
+<span>AI Intelligence</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-primary bg-secondary-container/30 font-bold hover:bg-surface-container-highest transition-all duration-200 ease-in-out font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="history" style="font-variation-settings: 'FILL' 1;">history</span>
+<span>Activity / Audit</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out font-label-md text-label-md mt-auto" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 md:ml-sidebar-width overflow-y-auto p-container-padding bg-surface-container-lowest">
+<div class="max-w-6xl mx-auto space-y-8">
+<!-- Header Section -->
+<div>
+<h1 class="font-display text-display text-on-surface mb-2 animate-fade-in">Activity Log</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant animate-fade-in" style="animation-delay: 150ms;">Complete operational history and audit trail.</p>
+</div>
+<!-- Filters -->
+<div class="bg-surface p-6 rounded-xl border border-outline-variant flex flex-col md:flex-row gap-4 items-end">
+<div class="flex-1 w-full">
+<label class="block font-label-md text-label-md text-on-surface-variant mb-2">Filter by Source</label>
+<select class="w-full h-10 px-3 rounded-lg border border-outline-variant bg-surface text-on-surface font-body-md text-body-md focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-all duration-300 ease-in-out">
+<option>All Events</option>
+<option>Admin</option>
+<option>Agent</option>
+<option>System</option>
+</select>
+</div>
+<div class="flex-1 w-full">
+<label class="block font-label-md text-label-md text-on-surface-variant mb-2">Date Range</label>
+<input class="w-full h-10 px-3 rounded-lg border border-outline-variant bg-surface text-on-surface font-body-md text-body-md focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-all duration-300 ease-in-out" type="date">
+</div>
+<div class="flex-none">
+<button class="h-10 px-6 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-bold hover:bg-primary-container transition-all duration-200 transform active:scale-95">
+                            Apply Filters
+                        </button>
+</div>
+</div>
+<!-- Timeline -->
+<div class="bg-surface rounded-xl border border-outline-variant p-6">
+<div class="relative border-l border-outline-variant ml-4 space-y-8 pb-4">
+<!-- Event 1 -->
+<div class="relative pl-8 animate-slide-in-right" style="animation-delay: 100ms;">
+<span class="absolute -left-2 top-1 w-4 h-4 rounded-full bg-primary ring-4 ring-surface"></span>
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
+<div class="font-label-md text-label-md text-primary bg-primary-fixed text-on-primary-fixed-variant px-2 py-1 rounded inline-block w-fit animate-pulse-subtle">Admin Action</div>
+<time class="font-mono-sm text-mono-sm text-on-surface-variant">Today, 10:32 AM</time>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Admin restarted PC-12</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Initiated manual reboot from dashboard.</p>
+</div>
+<!-- Event 2 -->
+<div class="relative pl-8 animate-slide-in-right" style="animation-delay: 200ms;">
+<span class="absolute -left-2 top-1 w-4 h-4 rounded-full bg-secondary ring-4 ring-surface"></span>
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
+<div class="font-label-md text-label-md bg-secondary-fixed text-on-secondary-fixed-variant px-2 py-1 rounded inline-block w-fit">Agent Event</div>
+<time class="font-mono-sm text-mono-sm text-on-surface-variant">Today, 10:33 AM</time>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Agent PC-12 connected</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Agent successfully re-established connection after restart.</p>
+</div>
+<!-- Event 3 -->
+<div class="relative pl-8 animate-slide-in-right" style="animation-delay: 300ms;">
+<span class="absolute -left-2 top-1 w-4 h-4 rounded-full bg-surface-tint ring-4 ring-surface"></span>
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
+<div class="font-label-md text-label-md bg-surface-variant text-on-surface-variant px-2 py-1 rounded inline-block w-fit animate-pulse-subtle">System Update</div>
+<time class="font-mono-sm text-mono-sm text-on-surface-variant">Today, 10:35 AM</time>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Software inventory updated</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Automated scan detected new Adobe CC versions across Lab B.</p>
+</div>
+<!-- Event 4 -->
+<div class="relative pl-8 animate-slide-in-right" style="animation-delay: 400ms;">
+<span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-tertiary-container ring-4 ring-surface"></span>
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
+<div class="font-label-md text-label-md bg-tertiary-fixed text-on-tertiary-fixed-variant px-2 py-1 rounded inline-block w-fit">AI Analysis</div>
+<time class="font-mono-sm text-mono-sm text-on-surface-variant">Today, 11:00 AM</time>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface">AI Risk Assessment complete</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Routine security analysis completed with 0 critical vulnerabilities found.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+</body></html>

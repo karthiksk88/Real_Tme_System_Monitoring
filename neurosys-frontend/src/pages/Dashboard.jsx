@@ -1,287 +1,350 @@
 import React, { useState, useEffect } from 'react';
-import StatCard from '../components/StatCard';
-import { metricsService } from '../services/metricsService';
-import { useWebSocket } from '../contexts/WebSocketContext';
-import { Monitor, Activity, ShieldAlert, Bell, CheckCircle2, RefreshCw, HelpCircle, Sparkles, Clock, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { metricsService } from '../services/metricsService';
+import { 
+  Server, 
+  CheckCircle2, 
+  AlertTriangle, 
+  XCircle, 
+  BrainCircuit, 
+  RefreshCw, 
+  Bell, 
+  ArrowRight,
+  Activity,
+  Layers,
+  Cpu,
+  ShieldAlert,
+  ChevronRight
+} from 'lucide-react';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [computers, setComputers] = useState([]);
   const [alerts, setAlerts] = useState([]);
-  const [aiSummary, setAiSummary] = useState(null);
+  const [aiPredictions, setAiPredictions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [refreshMessage, setRefreshMessage] = useState('');
-  const { updateLastSeen } = useWebSocket();
-  const navigate = useNavigate();
+  const [lastUpdated, setLastUpdated] = useState('Just now');
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 3000);
+    const interval = setInterval(fetchDashboardData, 10000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardData = async () => {
     try {
-      // 1. Fetch Monitored Computers
-      const computersRes = await metricsService.getAllComputers();
-      const compList = computersRes?.data || (Array.isArray(computersRes) ? computersRes : []);
-      if (Array.isArray(compList)) {
-        setComputers(compList);
-      }
+      const [compRes, alertRes] = await Promise.all([
+        metricsService.getAllComputers().catch(() => ({ data: [] })),
+        metricsService.getActiveAlerts().catch(() => ({ data: [] }))
+      ]);
 
-      // 2. Fetch Active Alerts
-      const alertsRes = await metricsService.getAllAlerts();
-      const alertList = alertsRes?.data || (Array.isArray(alertsRes) ? alertsRes : []);
-      if (Array.isArray(alertList)) {
-        setAlerts(alertList.filter((a) => a.status === 'OPEN' || a.status === 'ACKNOWLEDGED'));
-      }
+      const compList = compRes?.data || (Array.isArray(compRes) ? compRes : []);
+      const alertList = alertRes?.data || (Array.isArray(alertRes) ? alertRes : []);
 
-      // 3. Fetch AI Health Summary
-      try {
-        const summaryRes = await metricsService.getAISummary();
-        if (summaryRes?.success) setAiSummary(summaryRes.data);
-      } catch (sumErr) {
-        console.error('Failed to load AI Summary', sumErr);
-      }
+      setComputers(Array.isArray(compList) ? compList : []);
+      setAlerts(Array.isArray(alertList) ? alertList : []);
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
-      if (updateLastSeen) updateLastSeen();
-    } catch (e) {
-      console.error('Failed to load dashboard data', e);
+      // Fetch sample AI predictions for computers
+      if (Array.isArray(compList) && compList.length > 0) {
+        const topComps = compList.slice(0, 3);
+        const predPromises = topComps.map(c => 
+          metricsService.getCrashPrediction(c.id).catch(() => null)
+        );
+        const predResults = await Promise.all(predPromises);
+        const validPreds = predResults.map(r => r?.data || r).filter(Boolean);
+        setAiPredictions(validPreds);
+      }
+    } catch (err) {
+      console.error('Error loading dashboard metrics', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleManualRefresh = async () => {
-    setRefreshing(true);
-    setRefreshMessage('Refreshing...');
-    await fetchDashboardData();
-    setRefreshing(false);
-    setRefreshMessage('Updated just now');
-    setTimeout(() => setRefreshMessage(''), 3000);
-  };
+  // Metric counts
+  const totalAssets = computers.length;
+  const healthyCount = computers.filter(c => c.status === 'ONLINE').length;
+  const criticalCount = computers.filter(c => c.status === 'CRITICAL' || c.status === 'OFFLINE').length;
+  const warningCount = computers.filter(c => c.status === 'WARNING' || c.status === 'PENDING').length;
 
-  // Compute strict logical status counts: Total = Online + Offline + Unknown
-  const totalComputers = computers.length;
-  const onlineCount = computers.filter(
-    (c) => c.status === 'ONLINE' || c.status === 'WARNING' || c.status === 'CRITICAL'
-  ).length;
-  const offlineCount = computers.filter((c) => c.status === 'OFFLINE').length;
-  const unknownCount = computers.filter((c) => c.status === 'UNKNOWN').length;
+  const healthyPercent = totalAssets > 0 ? Math.round((healthyCount / totalAssets) * 100) : 100;
+  const warningPercent = totalAssets > 0 ? Math.round((warningCount / totalAssets) * 100) : 0;
+  const criticalPercent = totalAssets > 0 ? Math.round((criticalCount / totalAssets) * 100) : 0;
 
-  // Identify Systems Needing Attention
-  const computersNeedingAttention = computers.filter((c) => {
-    const isOffline = c.status === 'OFFLINE';
-    const isHighCpu = c.currentCpuUsage != null && c.currentCpuUsage >= 90;
-    const isHighRam = c.currentRamUsage != null && c.currentRamUsage >= 90;
-    const isHighDisk = c.currentDiskUsage != null && c.currentDiskUsage >= 90;
-    const isNoInternet = !c.internetConnected && c.status !== 'OFFLINE';
-    return isOffline || isHighCpu || isHighRam || isHighDisk || isNoInternet;
-  });
-
-  const formatLastSeen = (timestampStr) => {
-    if (!timestampStr) return 'Never';
-    try {
-      const date = new Date(timestampStr);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    } catch (e) {
-      return timestampStr;
-    }
-  };
+  // Group computers by lab
+  const labGroups = computers.reduce((acc, c) => {
+    const lab = c.labName || 'General Lab';
+    if (!acc[lab]) acc[lab] = [];
+    acc[lab].push(c);
+    return acc;
+  }, {});
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto py-2">
-      {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Welcome Banner */}
+      <section className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-2 animate-fade-in-up">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-100 tracking-tight">
-            Predictive Command Dashboard 👋
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Real-time telemetry, AI evidence diagnosis, and failure predictions across endpoints.
+          <h1 className="font-display text-display text-on-background tracking-tight">Good morning, Admin</h1>
+          <p className="font-body-lg text-body-lg text-secondary mt-1">
+            Here is the real-time operational health of your enterprise computer labs.
           </p>
         </div>
-        <div className="flex items-center space-x-3">
-          {refreshMessage && (
-            <span className="text-xs font-semibold text-cyan-400 transition-all">
-              {refreshMessage}
-            </span>
-          )}
-          <button
-            onClick={handleManualRefresh}
-            disabled={refreshing}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white hover:border-cyan-500/40 transition-all flex items-center gap-2 shadow-sm"
+        <div className="flex items-center gap-3">
+          <span className="text-label-md font-label-md text-secondary">Last updated: {lastUpdated}</span>
+          <button 
+            onClick={fetchDashboardData}
+            className="p-2 rounded-full border border-outline-variant text-secondary hover:bg-surface-container hover:text-primary transition-colors hover:rotate-180 duration-500 shadow-sm"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${refreshing ? 'animate-spin' : ''}`} />
-            <span>{refreshing ? 'Refreshing...' : 'Refresh Data'}</span>
+            <RefreshCw className="w-4 h-4" />
           </button>
         </div>
-      </div>
+      </section>
 
-      {/* 2. Four Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard
-          title="Total Computers"
-          value={totalComputers}
-          subtitle={`Online (${onlineCount}) + Offline (${offlineCount}) + Unknown (${unknownCount})`}
-          icon={Monitor}
-          color="cyan"
-        />
-        <StatCard
-          title="Online"
-          value={onlineCount}
-          subtitle="Active telemetry heartbeats"
-          icon={Activity}
-          color="emerald"
-        />
-        <StatCard
-          title="Offline"
-          value={offlineCount}
-          subtitle="Missed heartbeat timeout"
-          icon={ShieldAlert}
-          color="red"
-        />
-        <StatCard
-          title="Unknown / Alerts"
-          value={unknownCount > 0 ? `${unknownCount} Unreported` : `${alerts.length} Active`}
-          subtitle={unknownCount > 0 ? "Awaiting first telemetry payload" : "Open critical alerts"}
-          icon={unknownCount > 0 ? HelpCircle : Bell}
-          color={unknownCount > 0 ? "amber" : "red"}
-        />
-      </div>
-
-      {/* 3. AI SYSTEM HEALTH SUMMARY CARD */}
-      <div className="glass-panel p-6 rounded-3xl border border-cyan-500/30 bg-cyan-500/5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800/80">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-extrabold text-slate-100">AI SYSTEM HEALTH SUMMARY</h3>
-              <p className="text-xs text-slate-400">Overview of endpoint health, risk predictions, and active problems</p>
-            </div>
+      {/* Summary Metrics (Bento Grid Style) */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in-up">
+        {/* Total Assets */}
+        <div 
+          onClick={() => navigate('/computers')}
+          className="card-elevated p-5 flex flex-col justify-between cursor-pointer hover:scale-[1.02] hover:shadow-md transition-all duration-300"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <Server className="w-6 h-6 text-secondary" />
+            <span className="font-label-md text-label-md text-secondary uppercase font-bold">Total Assets</span>
           </div>
-          <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-            {totalComputers} Computers Monitored
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 text-center">
-            <span className="text-[10px] text-slate-400 font-semibold block uppercase">Healthy</span>
-            <span className="text-lg font-extrabold text-emerald-400 mt-1 block">
-              🟢 {aiSummary ? aiSummary.healthyCount : onlineCount}
-            </span>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 text-center">
-            <span className="text-[10px] text-slate-400 font-semibold block uppercase">Needs Attention</span>
-            <span className="text-lg font-extrabold text-amber-400 mt-1 block">
-              🟠 {aiSummary ? aiSummary.needsAttentionCount : computersNeedingAttention.length}
-            </span>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 text-center">
-            <span className="text-[10px] text-slate-400 font-semibold block uppercase">Critical</span>
-            <span className="text-lg font-extrabold text-red-400 mt-1 block">
-              🔴 {aiSummary ? aiSummary.criticalCount : 0}
-            </span>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 text-center">
-            <span className="text-[10px] text-slate-400 font-semibold block uppercase">Predicted Risks</span>
-            <span className="text-lg font-extrabold text-blue-400 mt-1 block flex items-center justify-center gap-1">
-              <Clock className="w-4 h-4 text-blue-400" />
-              {aiSummary ? aiSummary.predictedRisksCount : 0}
-            </span>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 text-center col-span-2 sm:col-span-1">
-            <span className="text-[10px] text-slate-400 font-semibold block uppercase">Critical Problems</span>
-            <span className="text-lg font-extrabold text-red-400 mt-1 block flex items-center justify-center gap-1">
-              <AlertTriangle className="w-4 h-4 text-red-400" />
-              {aiSummary ? aiSummary.criticalProblemsCount : 0}
-            </span>
+          <div>
+            <div className="font-display text-display text-on-surface">{totalAssets}</div>
+            <div className="font-body-md text-body-md text-secondary mt-1">Computers Registered</div>
           </div>
         </div>
-      </div>
 
-      {/* 4. Systems Needing Attention */}
-      <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
-          <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2.5">
-            <ShieldAlert className="w-5 h-5 text-red-400" />
-            Systems Needing Attention
-          </h3>
-          <span className="text-xs text-slate-400 font-medium">
-            {computersNeedingAttention.length} system{computersNeedingAttention.length !== 1 ? 's' : ''} require action
-          </span>
+        {/* Healthy / Online */}
+        <div 
+          onClick={() => navigate('/computers?status=ONLINE')}
+          className="card-elevated p-5 flex flex-col justify-between border-l-4 border-l-[#10b981] cursor-pointer hover:scale-[1.02] hover:shadow-md transition-all duration-300"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <CheckCircle2 className="w-6 h-6 text-[#10b981]" />
+            <span className="font-label-md text-label-md text-secondary uppercase font-bold">Healthy</span>
+          </div>
+          <div>
+            <div className="font-display text-display text-on-surface">{healthyCount}</div>
+            <div className="font-body-md text-body-md text-secondary mt-1">Online & Ready</div>
+          </div>
         </div>
 
-        {loading ? (
-          <div className="p-8 text-center text-slate-400 text-xs italic">
-            Scanning monitored lab endpoints...
+        {/* Critical / Offline */}
+        <div 
+          onClick={() => navigate('/computers?status=CRITICAL')}
+          className="card-elevated p-5 flex flex-col justify-between border-l-4 border-l-error bg-error-container/10 cursor-pointer hover:scale-[1.02] hover:shadow-md transition-all duration-300"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <XCircle className="w-6 h-6 text-error animate-pulse" />
+            <span className="font-label-md text-label-md text-error font-bold uppercase">Critical</span>
           </div>
-        ) : computersNeedingAttention.length === 0 ? (
-          <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-            <span>✓ All monitored computers are operating normally.</span>
+          <div>
+            <div className="font-display text-display text-error">{criticalCount}</div>
+            <div className="font-body-md text-body-md text-on-surface-variant mt-1">Offline or Failing</div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {computersNeedingAttention.map((c) => {
-              const isOffline = c.status === 'OFFLINE';
-              const isUnknown = c.status === 'UNKNOWN';
+        </div>
 
-              let issueBadge = "🔴 Needs Inspection";
-              let issueDesc = "Hardware or connectivity requires attention";
+        {/* Warning / Needs Attention */}
+        <div 
+          onClick={() => navigate('/computers?status=WARNING')}
+          className="card-elevated p-5 flex flex-col justify-between border-l-4 border-l-[#f59e0b] cursor-pointer hover:scale-[1.02] hover:shadow-md transition-all duration-300"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <AlertTriangle className="w-6 h-6 text-[#f59e0b]" />
+            <span className="font-label-md text-label-md text-secondary uppercase font-bold">Warning</span>
+          </div>
+          <div>
+            <div className="font-display text-display text-on-surface">{warningCount}</div>
+            <div className="font-body-md text-body-md text-secondary mt-1">Needs Attention</div>
+          </div>
+        </div>
+      </section>
 
-              if (isOffline) {
-                issueBadge = "⚪ Offline";
-                issueDesc = `Missed heartbeat (Last seen: ${formatLastSeen(c.lastSeenAt)})`;
-              } else if (isUnknown) {
-                issueBadge = "⚫ Unknown";
-                issueDesc = "Awaiting initial telemetry report";
-              } else if (!c.internetConnected) {
-                issueBadge = "🔴 No Internet";
-                issueDesc = "Computer is online but internet is unavailable";
-              } else if (c.currentCpuUsage != null && c.currentCpuUsage >= 90) {
-                issueBadge = `🔴 CPU ${Math.round(c.currentCpuUsage)}%`;
-                issueDesc = "CPU utilization critically high";
-              } else if (c.currentRamUsage != null && c.currentRamUsage >= 90) {
-                issueBadge = `🔴 RAM ${Math.round(c.currentRamUsage)}%`;
-                issueDesc = "Memory utilization critically high";
-              } else if (c.currentDiskUsage != null && c.currentDiskUsage >= 90) {
-                issueBadge = `🔴 Disk ${Math.round(c.currentDiskUsage)}%`;
-                issueDesc = "Disk space utilization critically high";
-              }
-
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => navigate(`/computers/${c.id}`)}
-                  className="p-5 rounded-2xl glass-card border border-red-500/30 hover:border-red-500/50 cursor-pointer transition-all space-y-3 block group shadow-lg"
-                >
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold text-slate-100 group-hover:text-cyan-400 transition-colors">
-                      {c.hostname}
-                    </h4>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30 font-mono">
-                      {issueBadge}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-300 font-medium">
-                    {issueDesc}
-                  </p>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 font-mono">
-                    <span>IP: {c.ipAddress}</span>
-                    <span>Lab: {c.labName}</span>
-                  </div>
+      {/* Main Core Dashboard Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: System Health & AI Insights */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* System Health Visual */}
+          <section className="card-elevated p-6 animate-fade-in-up">
+            <h3 className="font-headline-md text-headline-md text-on-surface mb-6 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-primary" />
+              System Health Overview
+            </h3>
+            {/* Clean Stacked Bar Visualization */}
+            <div className="space-y-4">
+              <div className="flex justify-between font-label-md text-label-md mb-2">
+                <span className="text-secondary">Network Operational Status</span>
+                <span className="text-on-surface font-bold">{healthyPercent}% Healthy</span>
+              </div>
+              <div className="w-full h-3.5 bg-surface-container-high rounded-full overflow-hidden flex">
+                <div className="bg-[#10b981] h-full shimmer-effect" style={{ width: `${healthyPercent}%` }} />
+                <div className="bg-[#f59e0b] h-full" style={{ width: `${warningPercent}%` }} />
+                <div className="bg-error h-full" style={{ width: `${criticalPercent}%` }} />
+              </div>
+              <div className="flex gap-6 mt-4 pt-4 border-t border-outline-variant">
+                <div className="flex items-center gap-2">
+                  <span className="status-dot status-healthy" />
+                  <span className="font-body-md text-body-md text-secondary">{healthyCount} Healthy</span>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <div className="flex items-center gap-2">
+                  <span className="status-dot status-warning" />
+                  <span className="font-body-md text-body-md text-secondary">{warningCount} Attention</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="status-dot status-critical" />
+                  <span className="font-body-md text-body-md text-secondary">{criticalCount} Critical</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* AI Predictive Insights (Glassmorphism inspired) */}
+          <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container/10 via-surface to-surface border border-primary/20 p-6 shadow-sm">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="flex items-center justify-between mb-4 relative z-10">
+              <h3 className="font-headline-md text-headline-md text-primary flex items-center gap-2 font-bold">
+                <BrainCircuit className="w-6 h-6 text-primary" />
+                AI Predictive Insights
+              </h3>
+              <button 
+                onClick={() => navigate('/analytics')}
+                className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+              >
+                View Predictions <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
+              {aiPredictions.length > 0 ? (
+                aiPredictions.slice(0, 2).map((pred, idx) => (
+                  <div key={idx} className="bg-surface/90 backdrop-blur-sm border border-outline-variant rounded-lg p-4 flex items-start gap-3 hover:border-primary-fixed transition-colors">
+                    <ShieldAlert className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-body-md text-body-md font-bold text-on-surface">{pred.predictedIssue || 'Resource Risk'}</h4>
+                      <p className="font-body-md text-body-md text-secondary mt-1 line-clamp-2">
+                        {pred.reasons?.[0] || pred.mainFactors?.[0] || `Estimated timeframe: ${pred.estimatedTimeframe || '~14 days'}`}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className="bg-surface/90 backdrop-blur-sm border border-outline-variant rounded-lg p-4 flex items-start gap-3 hover:border-primary-fixed transition-colors">
+                    <Activity className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-body-md text-body-md font-semibold text-on-surface">Performance Risk Trend</h4>
+                      <p className="font-body-md text-body-md text-secondary mt-1">Linear regression engines analyzing active process concurrency across registered computers.</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface/90 backdrop-blur-sm border border-outline-variant rounded-lg p-4 flex items-start gap-3 hover:border-primary-fixed transition-colors">
+                    <BrainCircuit className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-body-md text-body-md font-semibold text-on-surface">Hardware Degradation Model</h4>
+                      <p className="font-body-md text-body-md text-secondary mt-1">Continuous storage exhaustion & thermal trend monitoring active across all lab assets.</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column: Active Alerts & Lab Readiness Overview */}
+        <div className="space-y-6">
+          {/* Recent Alerts */}
+          <section className="card-elevated p-0 overflow-hidden flex flex-col h-full max-h-[320px]">
+            <div className="p-4 border-b border-outline-variant bg-surface-container-lowest flex justify-between items-center sticky top-0 z-10">
+              <h3 className="font-headline-md text-headline-md text-on-surface flex items-center gap-2">
+                <Bell className="w-5 h-5 text-secondary" />
+                Active Alerts
+              </h3>
+              <button onClick={() => navigate('/alerts')} className="font-label-md text-label-md text-primary hover:underline font-bold">
+                View All ({alerts.length})
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 divide-y divide-outline-variant">
+              {alerts.length > 0 ? (
+                alerts.slice(0, 4).map((alert) => (
+                  <div key={alert.id} className="p-4 hover:bg-surface-container-low transition-colors flex gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                      alert.severity === 'CRITICAL' || alert.type?.includes('CRITICAL') ? 'bg-error-container text-error' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      <AlertTriangle className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`font-label-md text-label-md px-1.5 py-0.5 rounded font-bold ${
+                          alert.severity === 'CRITICAL' ? 'bg-error text-on-error' : 'bg-[#f59e0b] text-white'
+                        }`}>
+                          {alert.severity || 'WARNING'}
+                        </span>
+                        <span className="font-mono-sm text-mono-sm text-secondary truncate">{alert.computerHostname || 'Lab Asset'}</span>
+                      </div>
+                      <p className="font-body-md text-body-md text-on-surface truncate">{alert.message || alert.title}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-secondary text-xs">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+                  <span>No active critical alerts recorded across computer labs.</span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Lab Readiness Overview */}
+          <section className="card-elevated p-4">
+            <div className="flex items-center justify-between mb-4 border-b border-outline-variant pb-2">
+              <h3 className="font-headline-md text-headline-md text-on-surface">Lab Readiness Overview</h3>
+              <button onClick={() => navigate('/lab-readiness')} className="font-label-md text-label-md text-primary hover:underline font-bold">
+                Details
+              </button>
+            </div>
+            <div className="space-y-3">
+              {Object.keys(labGroups).length > 0 ? (
+                Object.entries(labGroups).map(([labName, comps]) => {
+                  const labOnline = comps.filter(c => c.status === 'ONLINE').length;
+                  const labPercent = comps.length > 0 ? Math.round((labOnline / comps.length) * 100) : 100;
+                  return (
+                    <div 
+                      key={labName}
+                      onClick={() => navigate(`/computers?lab=${encodeURIComponent(labName)}`)}
+                      className="flex items-center justify-between p-2.5 hover:bg-surface-container rounded-lg transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Layers className="w-5 h-5 text-secondary group-hover:text-primary transition-colors" />
+                        <div>
+                          <div className="font-body-md text-body-md font-semibold text-on-surface">{labName}</div>
+                          <div className="font-label-md text-label-md text-secondary">{comps.length} Computers</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`font-body-md text-body-md font-bold ${labPercent >= 90 ? 'text-[#10b981]' : 'text-[#f59e0b]'}`}>
+                          {labPercent}% Ready
+                        </div>
+                        <div className="w-20 h-1.5 bg-surface-container-high rounded-full mt-1 ml-auto overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${labPercent >= 90 ? 'bg-[#10b981]' : 'bg-[#f59e0b]'}`} 
+                            style={{ width: `${labPercent}%` }} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-4 text-center text-xs text-secondary">
+                  Loading campus labs...
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );

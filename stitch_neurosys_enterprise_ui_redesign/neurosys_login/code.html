@@ -1,0 +1,261 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>NeuroSys - Login</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary": "#3525cd",
+                      "primary-container": "#4f46e5",
+                      "secondary-container": "#d0e1fb",
+                      "tertiary-fixed-dim": "#ffb695",
+                      "error": "#ba1a1a",
+                      "secondary": "#505f76",
+                      "on-error": "#ffffff",
+                      "surface-dim": "#dcd8e5",
+                      "surface-bright": "#fcf8ff",
+                      "surface": "#fcf8ff",
+                      "on-surface-variant": "#464555",
+                      "surface-container-highest": "#e4e1ee",
+                      "on-tertiary-fixed-variant": "#7b2f00",
+                      "tertiary": "#7e3000",
+                      "secondary-fixed-dim": "#b7c8e1",
+                      "outline-variant": "#c7c4d8",
+                      "on-secondary-fixed-variant": "#38485d",
+                      "background": "#fcf8ff",
+                      "surface-container-low": "#f5f2ff",
+                      "on-secondary-fixed": "#0b1c30",
+                      "on-primary-fixed-variant": "#3323cc",
+                      "inverse-primary": "#c3c0ff",
+                      "inverse-on-surface": "#f3effc",
+                      "on-error-container": "#93000a",
+                      "on-primary": "#ffffff",
+                      "outline": "#777587",
+                      "on-secondary-container": "#54647a",
+                      "surface-tint": "#4d44e3",
+                      "secondary-fixed": "#d3e4fe",
+                      "on-primary-container": "#dad7ff",
+                      "primary-fixed-dim": "#c3c0ff",
+                      "on-tertiary-fixed": "#351000",
+                      "surface-container-lowest": "#ffffff",
+                      "inverse-surface": "#302f39",
+                      "primary-fixed": "#e2dfff",
+                      "surface-container": "#f0ecf9",
+                      "on-tertiary": "#ffffff",
+                      "on-tertiary-container": "#ffd2be",
+                      "surface-container-high": "#eae6f4",
+                      "on-primary-fixed": "#0f0069",
+                      "on-background": "#1b1b24",
+                      "on-secondary": "#ffffff",
+                      "on-surface": "#1b1b24",
+                      "tertiary-fixed": "#ffdbcc",
+                      "tertiary-container": "#a44100",
+                      "error-container": "#ffdad6",
+                      "surface-variant": "#e4e1ee"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "gutter": "16px",
+                      "sidebar-width": "260px",
+                      "unit": "4px",
+                      "container-padding": "24px",
+                      "sidebar-collapsed": "72px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "display": [
+                              "Geist"
+                      ],
+                      "mono-sm": [
+                              "Geist"
+                      ],
+                      "label-md": [
+                              "Geist"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Geist"
+                      ],
+                      "headline-lg": [
+                              "Geist"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display": [
+                              "36px",
+                              {
+                                      "lineHeight": "44px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "mono-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "28px",
+                              {
+                                      "lineHeight": "36px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+            },
+          }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        
+        /* Subtle animated background pattern */
+        .bg-pattern {
+            background-image: radial-gradient(var(--tw-colors-surface-variant) 1px, transparent 1px);
+            background-size: 24px 24px;
+            animation: drift 60s linear infinite;
+        }
+        
+        @keyframes drift {
+            0% { background-position: 0 0; }
+            100% { background-position: 24px 24px; }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md antialiased min-h-screen flex items-center justify-center relative overflow-hidden">
+<!-- Ambient Background -->
+<div class="absolute inset-0 bg-pattern opacity-50 z-0 pointer-events-none"></div>
+<div class="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-surface-container-high to-transparent opacity-30 z-0 pointer-events-none"></div>
+<!-- Login Container -->
+<div class="relative z-10 w-full max-w-md px-gutter md:px-0">
+<div class="glass-panel border border-outline-variant/50 rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.03)] p-8 md:p-10 flex flex-col gap-8">
+<!-- Header -->
+<div class="text-center flex flex-col gap-2">
+<h1 class="text-headline-lg font-headline-lg font-black text-primary tracking-tight">NeuroSys</h1>
+<p class="text-body-md font-body-md text-secondary">Computer Lab Management</p>
+</div>
+<!-- Form -->
+<form action="#" class="flex flex-col gap-5" method="POST">
+<div class="flex flex-col gap-4">
+<!-- Username/Email -->
+<div>
+<label class="sr-only" for="identifier">Username or Email</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline text-[20px]">person</span>
+</div>
+<input autocomplete="username" class="w-full h-[40px] pl-10 pr-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md font-body-md text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed-dim focus:border-primary transition-all duration-200" id="identifier" name="identifier" placeholder="Username or Email" required="" type="text">
+</div>
+</div>
+<!-- Password -->
+<div>
+<label class="sr-only" for="password">Password</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline text-[20px]">lock</span>
+</div>
+<input autocomplete="current-password" class="w-full h-[40px] pl-10 pr-10 py-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md font-body-md text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed-dim focus:border-primary transition-all duration-200" id="password" name="password" placeholder="Password" required="" type="password">
+<!-- Toggle Password Visibility (JS handled) -->
+<button class="absolute inset-y-0 right-0 pr-3 flex items-center text-outline hover:text-on-surface transition-colors" id="togglePassword" type="button">
+<span class="material-symbols-outlined text-[20px]" id="visibilityIcon">visibility_off</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex items-center justify-between mt-1">
+<div class="flex items-center">
+<input class="h-4 w-4 text-primary focus:ring-primary border-outline-variant rounded bg-surface-container-lowest cursor-pointer" id="remember-me" name="remember-me" type="checkbox">
+<label class="ml-2 block text-label-md font-label-md text-on-surface-variant cursor-pointer" for="remember-me">
+                            Remember me
+                        </label>
+</div>
+<div class="text-label-md font-label-md">
+<a class="text-primary hover:text-primary-container font-medium transition-colors" href="#">
+                            Forgot password?
+                        </a>
+</div>
+</div>
+<!-- Submit Button -->
+<button class="mt-2 w-full h-[40px] flex justify-center items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-label-md font-label-md font-medium text-on-primary bg-primary-container hover:bg-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary focus:ring-offset-background transition-all duration-200" type="submit">
+                    Sign In
+                </button>
+</form>
+<!-- Footer Text -->
+<div class="text-center mt-2">
+<p class="text-mono-sm font-mono-sm text-secondary opacity-70">
+                    Secure access restricted to authorized personnel.
+                </p>
+</div>
+</div>
+</div>
+<script>
+        // Simple password toggle visibility script
+        document.addEventListener('DOMContentLoaded', () => {
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            const visibilityIcon = document.getElementById('visibilityIcon');
+
+            togglePassword.addEventListener('click', function (e) {
+                // toggle the type attribute
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                
+                // toggle the icon
+                visibilityIcon.textContent = type === 'password' ? 'visibility_off' : 'visibility';
+            });
+        });
+    </script>
+</body></html>

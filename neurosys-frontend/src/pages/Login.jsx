@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Cpu, Lock, User, ShieldCheck } from 'lucide-react';
+import { BrainCircuit, Lock, User, AlertCircle, ShieldCheck } from 'lucide-react';
 
 const Login = () => {
-  const [usernameOrEmail, setUsernameOrEmail] = useState('admin');
-  const [password, setPassword] = useState('Admin@123');
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('admin123');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -15,86 +15,105 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
-      await login(usernameOrEmail, password);
-      navigate('/dashboard');
+      const success = await login(username, password);
+      if (success) {
+        navigate('/dashboard');
+      } else {
+        setError('Invalid administrator credentials. Please check username and password.');
+      }
     } catch (err) {
-      setError(err.message || 'Invalid credentials');
+      setError('Connection error. Failed to authenticate with NeuroSys server.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Animated Glowing Spheres */}
-      <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="w-full max-w-md glass-panel p-8 rounded-3xl border border-slate-800 shadow-2xl relative z-10 space-y-6">
-        {/* Header */}
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 selection:bg-primary-container selection:text-white">
+      <div className="w-full max-w-md space-y-6">
+        {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/25 mb-2">
-            <Cpu className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary text-white shadow-xl shadow-primary/25 mb-2">
+            <BrainCircuit className="w-9 h-9" />
           </div>
-          <h2 className="text-2xl font-extrabold text-slate-100 tracking-tight">NeuroSys Platform</h2>
-          <p className="text-xs text-slate-400">Enterprise AI Predictive System Monitoring</p>
+          <h1 className="font-display text-display font-bold text-on-surface tracking-tight">NeuroSys Admin</h1>
+          <p className="font-body-md text-body-md text-secondary">
+            Predictive Monitoring & Enterprise Lab Management
+          </p>
         </div>
 
-        {error && (
-          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-400 font-medium text-center">
-            {error}
+        {/* Login Card */}
+        <div className="card-elevated p-8 shadow-lg space-y-6 bg-surface-container-lowest border border-outline-variant">
+          <div className="border-b border-outline-variant pb-4">
+            <h2 className="font-headline-md text-headline-md font-bold text-on-surface">Sign In to Console</h2>
+            <p className="font-body-md text-body-md text-secondary mt-1">Enter your supervisor credentials to access lab assets.</p>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              Username or Email
-            </label>
-            <div className="relative">
-              <User className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
-              <input
-                type="text"
-                value={usernameOrEmail}
-                onChange={(e) => setUsernameOrEmail(e.target.value)}
-                required
-                className="w-full pl-10 pr-4 py-3 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
-                placeholder="admin or admin@neurosys.com"
-              />
+          {error && (
+            <div className="p-3.5 bg-error-container/40 border border-error/30 rounded-xl text-error text-xs font-bold flex items-center gap-2 animate-fade-in-up">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
             </div>
-          </div>
+          )}
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full pl-10 pr-4 py-3 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
-                placeholder="••••••••"
-              />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="font-label-md text-label-md text-secondary font-bold block mb-1.5">
+                Username / Email
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="admin"
+                  className="w-full pl-10 pr-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-semibold text-on-surface focus:outline-none focus:border-primary focus:bg-surface-container-lowest transition-all"
+                />
+              </div>
             </div>
+
+            <div>
+              <label className="font-label-md text-label-md text-secondary font-bold block mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-semibold text-on-surface focus:outline-none focus:border-primary focus:bg-surface-container-lowest transition-all"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-primary hover:bg-primary-container text-white rounded-xl font-bold text-xs shadow-md shadow-primary/20 transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>{loading ? 'Authenticating...' : 'Sign In to Dashboard'}</span>
+            </button>
+          </form>
+
+          <div className="pt-4 border-t border-outline-variant text-center">
+            <p className="text-[11px] font-mono text-secondary">
+              Default Credentials: <strong className="text-on-surface">admin / admin123</strong>
+            </p>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 transition-all duration-200"
-          >
-            {loading ? 'Authenticating...' : 'Sign In to Dashboard'}
-          </button>
-        </form>
-
-        <div className="pt-4 border-t border-slate-800 text-center flex items-center justify-center space-x-2 text-[11px] text-slate-500">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>Stateless JWT Authentication & BCrypt Encryption</span>
         </div>
+
+        {/* Footer info */}
+        <p className="text-center text-xs text-secondary">
+          © {new Date().getFullYear()} NeuroSys Systems. All rights reserved.
+        </p>
       </div>
     </div>
   );

@@ -1,363 +1,351 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import StatusBadge from '../components/StatusBadge';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { metricsService } from '../services/metricsService';
-import api from '../services/api';
-import { Monitor, Search, Plus, Download, CheckCircle, XCircle, Terminal, RefreshCw, X, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { 
+  Monitor, 
+  Search, 
+  Power, 
+  RotateCw, 
+  Lock, 
+  Filter, 
+  CheckSquare, 
+  Square, 
+  ChevronRight, 
+  Cpu, 
+  HardDrive, 
+  Activity, 
+  AlertTriangle,
+  CheckCircle2,
+  Trash2,
+  SlidersHorizontal,
+  LayoutGrid,
+  List
+} from 'lucide-react';
+import RemotePowerManagement from '../components/RemotePowerManagement';
 
 const Computers = () => {
-  const [computers, setComputers] = useState([]);
-  const [pendingComputers, setPendingComputers] = useState([]);
-  const [search, setSearch] = useState('');
-  const [filterLab, setFilterLab] = useState('ALL');
-  const [filterStatus, setFilterStatus] = useState('ALL');
-  const [filterInternet, setFilterInternet] = useState('ALL');
-  const [sortBy, setSortBy] = useState('health');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(null);
-
   const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const q = params.get('search');
-    if (q) setSearch(q);
-  }, [location.search]);
+  const [searchParams] = useSearchParams();
+  const [computers, setComputers] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [selectedLabFilter, setSelectedLabFilter] = useState(searchParams.get('lab') || 'ALL');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState(searchParams.get('status') || 'ALL');
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
+  const [bulkActionConfirm, setBulkActionConfirm] = useState(null); // 'SHUTDOWN' | 'RESTART' | 'LOCK'
 
   useEffect(() => {
     fetchComputers();
-    fetchPendingComputers();
-    const interval = setInterval(() => {
-      fetchComputers();
-      fetchPendingComputers();
-    }, 3000);
+    const interval = setInterval(fetchComputers, 5000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchComputers = async () => {
     try {
       const res = await metricsService.getAllComputers();
-      const dataList = res?.data || (Array.isArray(res) ? res : null);
-      if (Array.isArray(dataList)) {
-        setComputers(dataList);
-        setFetchError(null);
-      } else if (res?.status === 'error' || res?.message) {
-        setFetchError("Unable to load computer data");
+      const list = res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list)) {
+        setComputers(list);
       }
-    } catch (e) {
-      console.error('Failed to load computers', e);
-      setFetchError("Unable to load computer data");
+    } catch (err) {
+      console.error('Error fetching computers', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchPendingComputers = async () => {
-    try {
-      const res = await api.get('/computers/pending');
-      const dataList = res?.data || (Array.isArray(res) ? res : []);
-      if (Array.isArray(dataList)) setPendingComputers(dataList);
-    } catch (e) {
-      // Ignore background fetch error
+  // Filter computers
+  const filteredComputers = computers.filter((c) => {
+    const matchesSearch = 
+      (c.hostname || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.ipAddress || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.labName || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesLab = selectedLabFilter === 'ALL' || c.labName === selectedLabFilter;
+    const matchesStatus = selectedStatusFilter === 'ALL' || c.status === selectedStatusFilter;
+
+    return matchesSearch && matchesLab && matchesStatus;
+  });
+
+  // Select all handler
+  const handleSelectAll = () => {
+    if (selectedIds.length === filteredComputers.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredComputers.map((c) => c.id));
     }
   };
 
-  const handleApprove = async (id) => {
+  const handleToggleSelect = (id) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter((item) => item !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  // Execute bulk command
+  const executeBulkCommand = async (commandType) => {
+    if (selectedIds.length === 0) return;
     try {
-      await api.post(`/computers/${id}/approve`);
+      await Promise.all(
+        selectedIds.map(id => metricsService.sendPowerCommand(id, commandType).catch(() => null))
+      );
+      setSelectedIds([]);
+      setBulkActionConfirm(null);
       fetchComputers();
-      fetchPendingComputers();
     } catch (e) {
-      console.error('Failed to approve computer', e);
+      console.error('Error executing bulk command', e);
     }
   };
 
-  const handleReject = async (id) => {
-    try {
-      await api.post(`/computers/${id}/reject`);
-      fetchComputers();
-      fetchPendingComputers();
-    } catch (e) {
-      console.error('Failed to reject computer', e);
-    }
-  };
-
-  const formatLastSeen = (timestampStr) => {
-    if (!timestampStr) return 'Never';
-    try {
-      const d = new Date(timestampStr);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    } catch (e) {
-      return timestampStr;
-    }
-  };
-
-  // Comprehensive Search (hostname, computerName, ipAddress, macAddress, labName)
-  const filteredComputers = computers
-    .filter((c) => {
-      const s = search.toLowerCase().trim();
-      const matchesSearch =
-        !s ||
-        (c.hostname && c.hostname.toLowerCase().includes(s)) ||
-        (c.computerName && c.computerName.toLowerCase().includes(s)) ||
-        (c.ipAddress && c.ipAddress.toLowerCase().includes(s)) ||
-        (c.macAddress && c.macAddress.toLowerCase().includes(s)) ||
-        (c.labName && c.labName.toLowerCase().includes(s));
-
-      const matchesLab = filterLab === 'ALL' || c.labName === filterLab;
-      
-      let matchesStatus = filterStatus === 'ALL';
-      if (filterStatus === 'ONLINE') {
-        matchesStatus = c.status === 'ONLINE' || c.status === 'WARNING' || c.status === 'CRITICAL';
-      } else if (filterStatus === 'OFFLINE') {
-        matchesStatus = c.status === 'OFFLINE';
-      } else if (filterStatus !== 'ALL') {
-        matchesStatus = c.status === filterStatus;
-      }
-
-      const isOffline = c.status === 'OFFLINE';
-      const isUnknown = c.status === 'UNKNOWN';
-      const isConnected = c.internetConnected && !isOffline && !isUnknown;
-
-      const matchesInternet =
-        filterInternet === 'ALL' ||
-        (filterInternet === 'CONNECTED' && isConnected) ||
-        (filterInternet === 'DISCONNECTED' && !c.internetConnected && !isOffline && !isUnknown) ||
-        (filterInternet === 'UNKNOWN' && (isOffline || isUnknown));
-
-      return matchesSearch && matchesLab && matchesStatus && matchesInternet;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'health') return (b.currentHealthScore || 0) - (a.currentHealthScore || 0);
-      if (sortBy === 'cpu') return (b.currentCpuUsage || 0) - (a.currentCpuUsage || 0);
-      if (sortBy === 'ram') return (b.currentRamUsage || 0) - (a.currentRamUsage || 0);
-      if (sortBy === 'disk') return (b.currentDiskUsage || 0) - (a.currentDiskUsage || 0);
-      if (sortBy === 'networkSpeed') return (b.currentNetworkSpeedMbps || 0) - (a.currentNetworkSpeedMbps || 0);
-      if (sortBy === 'name') return (a.hostname || '').localeCompare(b.hostname || '');
-      if (sortBy === 'lastSeen') return new Date(b.lastSeenAt || 0) - new Date(a.lastSeenAt || 0);
-      return 0;
-    });
-
-  const labs = Array.from(new Set(computers.map((c) => c.labName).filter(Boolean)));
+  const labNames = ['ALL', ...new Set(computers.map(c => c.labName || 'General Lab'))];
 
   return (
-    <div className="space-y-6">
-      {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Top Header & Page Title */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-lowest border border-outline-variant p-6 rounded-xl shadow-sm">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-100 tracking-tight flex items-center gap-2">
-            Monitored Computers Catalog
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
-              LIVE Telemetry
-            </span>
-          </h2>
-          <p className="text-xs text-slate-400">Searchable catalog of registered computer endpoints with real-time status and telemetry</p>
+          <div className="flex items-center gap-3">
+            <Monitor className="w-7 h-7 text-primary" />
+            <h1 className="font-display text-display text-on-background tracking-tight">Computers Management</h1>
+          </div>
+          <p className="font-body-md text-body-md text-secondary mt-1">
+            Monitor, inspect telemetry trends, and trigger remote commands across campus computer assets.
+          </p>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Computer</span>
-        </button>
-      </div>
-
-      {/* Temporary API Error Notice Banner */}
-      {fetchError && computers.length === 0 && (
-        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between font-medium">
-          <div className="flex items-center space-x-2.5">
-            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 animate-pulse" />
-            <div>
-              <strong className="text-amber-200 block">Unable to load computer data</strong>
-              <span>Re-establishing connection to Railway server... Registered computer records are safe.</span>
-            </div>
-          </div>
-          <button onClick={fetchComputers} className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold border border-amber-500/30 transition-all">
-            Retry Now
+        {/* View Toggle */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`p-2 rounded-lg border text-xs font-semibold transition-colors ${
+              viewMode === 'grid' ? 'bg-primary text-white border-primary' : 'bg-surface-container-low border-outline-variant text-secondary hover:bg-surface-container'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode('table')}
+            className={`p-2 rounded-lg border text-xs font-semibold transition-colors ${
+              viewMode === 'table' ? 'bg-primary text-white border-primary' : 'bg-surface-container-low border-outline-variant text-secondary hover:bg-surface-container'
+            }`}
+          >
+            <List className="w-4 h-4" />
           </button>
         </div>
-      )}
+      </div>
 
-      {/* Pending Computer Approvals Notification Banner */}
-      {pendingComputers.length > 0 && (
-        <div className="glass-panel p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-amber-300 flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-amber-400" />
-              New Computer Registrations Detected ({pendingComputers.length} Pending Approval)
-            </h3>
-            <span className="text-[10px] font-mono text-amber-400">Action Required</span>
+      {/* Bulk Action Bar (When items are selected) */}
+      {selectedIds.length > 0 && (
+        <div className="bg-primary/10 border-2 border-primary rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in-up shadow-md">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-full bg-primary text-white font-bold text-xs flex items-center justify-center">
+              {selectedIds.length}
+            </span>
+            <span className="font-headline-md text-body-lg font-bold text-primary">
+              {selectedIds.length} Computer{selectedIds.length > 1 ? 's' : ''} Selected
+            </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {pendingComputers.map((pc) => (
-              <div key={pc.id} className="p-3 rounded-xl bg-slate-900 border border-amber-500/20 flex items-center justify-between text-xs">
-                <div>
-                  <p className="font-bold text-slate-200">{pc.hostname}</p>
-                  <p className="text-[10px] font-mono text-slate-400">{pc.ipAddress} • {pc.labName}</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleApprove(pc.id)}
-                    className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30"
-                    title="Approve Endpoint"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleReject(pc.id)}
-                    className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30"
-                    title="Reject Endpoint"
-                  >
-                    <XCircle className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBulkActionConfirm('SHUTDOWN')}
+              className="px-3.5 py-2 bg-error text-on-error hover:bg-red-700 rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition-transform active:scale-95"
+            >
+              <Power className="w-4 h-4" />
+              Shut Down Selected ({selectedIds.length})
+            </button>
+            <button
+              onClick={() => setBulkActionConfirm('RESTART')}
+              className="px-3.5 py-2 bg-amber-500 text-white hover:bg-amber-600 rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition-transform active:scale-95"
+            >
+              <RotateCw className="w-4 h-4" />
+              Restart Selected
+            </button>
+            <button
+              onClick={() => setSelectedIds([])}
+              className="px-3 py-2 border border-outline-variant text-secondary hover:bg-surface-container rounded-lg text-xs font-semibold"
+            >
+              Clear Selection
+            </button>
           </div>
         </div>
       )}
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-2xl glass-panel border border-slate-800">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+      {/* Filter Toolbar */}
+      <div className="card-elevated p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* Search Input */}
+        <div className="relative w-full md:w-80">
+          <Search className="w-4 h-4 text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search hostname, computer name, IP, MAC, lab..."
-            className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search hostname, IP, lab..."
+            className="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-medium text-on-surface focus:outline-none focus:border-primary focus:bg-surface-container-lowest transition-all"
           />
         </div>
 
-        <select
-          value={filterLab}
-          onChange={(e) => setFilterLab(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500"
-        >
-          <option value="ALL">All Labs</option>
-          {labs.map((lab) => (
-            <option key={lab} value={lab}>{lab}</option>
-          ))}
-        </select>
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          {/* Select All */}
+          <button
+            onClick={handleSelectAll}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-outline-variant text-xs font-semibold text-secondary hover:bg-surface-container transition-colors"
+          >
+            {selectedIds.length === filteredComputers.length && filteredComputers.length > 0 ? (
+              <CheckSquare className="w-4 h-4 text-primary" />
+            ) : (
+              <Square className="w-4 h-4 text-secondary" />
+            )}
+            <span>Select All ({filteredComputers.length})</span>
+          </button>
 
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500"
-        >
-          <option value="ALL">All Status</option>
-          <option value="ONLINE">Online 🟢</option>
-          <option value="WARNING">Warning 🟡</option>
-          <option value="CRITICAL">Critical 🔴</option>
-          <option value="OFFLINE">Offline ⚪</option>
-          <option value="UNKNOWN">Unknown ⚫</option>
-        </select>
+          {/* Lab Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-secondary">Lab:</span>
+            <select
+              value={selectedLabFilter}
+              onChange={(e) => setSelectedLabFilter(e.target.value)}
+              className="px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-semibold text-on-surface focus:outline-none focus:border-primary"
+            >
+              {labNames.map(lab => (
+                <option key={lab} value={lab}>{lab}</option>
+              ))}
+            </select>
+          </div>
 
-        <select
-          value={filterInternet}
-          onChange={(e) => setFilterInternet(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500"
-        >
-          <option value="ALL">All Internet</option>
-          <option value="CONNECTED">Internet Connected 🌐</option>
-          <option value="DISCONNECTED">No Internet 🔴</option>
-          <option value="UNKNOWN">Offline / Unknown —</option>
-        </select>
-
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500"
-        >
-          <option value="health">Sort: Health Score ↓</option>
-          <option value="cpu">Sort: CPU Usage ↓</option>
-          <option value="ram">Sort: RAM Usage ↓</option>
-          <option value="disk">Sort: Disk Usage ↓</option>
-          <option value="networkSpeed">Sort: Internet Speed ↓</option>
-          <option value="lastSeen">Sort: Last Seen ↓</option>
-          <option value="name">Sort: Hostname (A-Z)</option>
-        </select>
+          {/* Status Tabs */}
+          <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg border border-outline-variant">
+            {['ALL', 'ONLINE', 'CRITICAL', 'WARNING', 'OFFLINE'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setSelectedStatusFilter(status)}
+                className={`px-3 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                  selectedStatusFilter === status
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-secondary hover:text-on-surface'
+                }`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Grid of Computer Cards */}
-      {loading ? (
-        <div className="p-12 text-center text-slate-400 text-xs italic">Loading computer catalog...</div>
-      ) : filteredComputers.length === 0 ? (
-        <div className="p-12 glass-panel rounded-2xl border border-slate-800 text-center text-slate-400 text-xs">
-          {fetchError ? fetchError : "No computers found matching your search and filter criteria."}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredComputers.map((c) => {
-            const isOffline = c.status === 'OFFLINE';
-            const isUnknown = c.status === 'UNKNOWN';
+      {/* Grid View */}
+      {viewMode === 'grid' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredComputers.map((comp) => {
+            const isSelected = selectedIds.includes(comp.id);
+            const isOnline = comp.status === 'ONLINE';
+            const isCritical = comp.status === 'CRITICAL';
+            const isWarning = comp.status === 'WARNING';
+
+            const cpu = comp.latestCpuPercent ?? comp.cpuUsagePercent ?? 0;
+            const ram = comp.latestRamPercent ?? comp.memoryUsagePercent ?? 0;
+            const diskFree = comp.latestDiskFreeGb ?? comp.diskFreeGb ?? 100;
 
             return (
               <div
-                key={c.id}
-                onClick={() => navigate(`/computers/${c.id}`)}
-                className="p-5 rounded-2xl glass-card border border-slate-800 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 cursor-pointer transition-all duration-300 space-y-4"
+                key={comp.id}
+                className={`card-elevated p-5 flex flex-col justify-between relative transition-all duration-200 ${
+                  isSelected ? 'border-2 border-primary bg-primary/5' : ''
+                } ${isCritical ? 'border-l-4 border-l-error' : isWarning ? 'border-l-4 border-l-[#f59e0b]' : 'border-l-4 border-l-[#10b981]'}`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-cyan-400">
-                      <Monitor className="w-5 h-5" />
+                {/* Header */}
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleSelect(comp.id)}
+                        className="text-secondary hover:text-primary transition-colors"
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="w-5 h-5 text-primary" />
+                        ) : (
+                          <Square className="w-5 h-5 text-outline-variant" />
+                        )}
+                      </button>
+                      <div>
+                        <h3 
+                          onClick={() => navigate(`/computers/${comp.id}`)}
+                          className="font-headline-md text-headline-md font-bold text-on-surface hover:text-primary cursor-pointer tracking-tight"
+                        >
+                          {comp.hostname}
+                        </h3>
+                        <span className="font-mono-sm text-mono-sm text-secondary block">{comp.ipAddress || '192.168.1.100'}</span>
+                      </div>
                     </div>
+
+                    <span className="px-2.5 py-1 rounded-full font-mono-sm text-mono-sm font-bold bg-surface-container text-on-surface-variant border border-outline-variant">
+                      {comp.labName || 'General Lab'}
+                    </span>
+                  </div>
+
+                  {/* Status Indicator */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className={`status-dot ${
+                      isCritical ? 'status-critical' : isWarning ? 'status-warning' : isOnline ? 'status-healthy' : 'status-neutral'
+                    }`} />
+                    <span className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider">
+                      {comp.status || 'UNKNOWN'}
+                    </span>
+                  </div>
+
+                  {/* Telemetry Mini Bars */}
+                  <div className="space-y-3 pt-3 border-t border-outline-variant">
+                    {/* CPU */}
                     <div>
-                      <h4 className="text-sm font-bold text-slate-100">{c.hostname}</h4>
-                      <p className="text-[11px] font-mono text-slate-400">{c.ipAddress} • {c.labName}</p>
+                      <div className="flex justify-between text-xs font-semibold mb-1">
+                        <span className="text-secondary flex items-center gap-1">
+                          <Cpu className="w-3.5 h-3.5 text-primary" /> CPU Load
+                        </span>
+                        <span className="text-on-surface">{Math.round(cpu)}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${cpu >= 85 ? 'bg-error' : cpu >= 70 ? 'bg-[#f59e0b]' : 'bg-primary'}`} 
+                          style={{ width: `${Math.min(100, Math.max(5, cpu))}%` }} 
+                        />
+                      </div>
+                    </div>
+
+                    {/* RAM */}
+                    <div>
+                      <div className="flex justify-between text-xs font-semibold mb-1">
+                        <span className="text-secondary flex items-center gap-1">
+                          <Activity className="w-3.5 h-3.5 text-primary" /> RAM Usage
+                        </span>
+                        <span className="text-on-surface">{Math.round(ram)}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${ram >= 90 ? 'bg-error' : ram >= 80 ? 'bg-[#f59e0b]' : 'bg-[#10b981]'}`} 
+                          style={{ width: `${Math.min(100, Math.max(5, ram))}%` }} 
+                        />
+                      </div>
                     </div>
                   </div>
-                  <StatusBadge status={c.status} />
                 </div>
 
-                {/* Hardware Metrics Table */}
-                <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-800/60 text-center">
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase">CPU</p>
-                    <p className="text-xs font-bold text-slate-200 mt-0.5">
-                      {isOffline || isUnknown || c.currentCpuUsage == null ? '—' : `${Math.round(c.currentCpuUsage)}%`}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase">RAM</p>
-                    <p className="text-xs font-bold text-slate-200 mt-0.5">
-                      {isOffline || isUnknown || c.currentRamUsage == null ? '—' : `${Math.round(c.currentRamUsage)}%`}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase">Health</p>
-                    <p className="text-xs font-bold text-emerald-400 mt-0.5">
-                      {isOffline ? '—' : `${Math.round(c.currentHealthScore || 100)}/100`}
-                    </p>
-                  </div>
-                </div>
+                {/* Footer Controls */}
+                <div className="mt-5 pt-3 border-t border-outline-variant flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => navigate(`/computers/${comp.id}`)}
+                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                  >
+                    View Metrics <ChevronRight className="w-4 h-4" />
+                  </button>
 
-                {/* Footer: Internet Status and Last Seen */}
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500 font-mono text-[10px]">
-                    Last seen: {formatLastSeen(c.lastSeenAt)}
-                  </span>
-
-                  {isOffline || isUnknown ? (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
-                      Internet: —
-                    </span>
-                  ) : !c.internetConnected ? (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">
-                      🔴 No Internet
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                      🌐 {c.currentNetworkSpeedMbps != null && c.currentNetworkSpeedMbps > 0
-                            ? `${c.currentNetworkSpeedMbps} Mbps`
-                            : 'Connected'}
-                    </span>
-                  )}
+                  <RemotePowerManagement 
+                    computerId={comp.id} 
+                    hostname={comp.hostname}
+                    status={comp.status} 
+                  />
                 </div>
               </div>
             );
@@ -365,50 +353,100 @@ const Computers = () => {
         </div>
       )}
 
-      {/* Add Computer Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-panel border border-slate-800 rounded-3xl max-w-xl w-full p-6 space-y-6 shadow-2xl relative">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center space-x-3">
-                <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                  <Monitor className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-slate-100">Add Computer Setup Guide</h3>
-                  <p className="text-xs text-slate-400">Follow these 6 simple steps to register a new computer</p>
-                </div>
-              </div>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white p-1">
-                <X className="w-5 h-5" />
+      {/* Table View */}
+      {viewMode === 'table' && (
+        <div className="card-elevated overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-surface-container-low border-b border-outline-variant font-label-md text-label-md text-secondary">
+                  <th className="p-4 w-10">
+                    <button onClick={handleSelectAll}>
+                      {selectedIds.length === filteredComputers.length && filteredComputers.length > 0 ? (
+                        <CheckSquare className="w-4 h-4 text-primary" />
+                      ) : (
+                        <Square className="w-4 h-4 text-secondary" />
+                      )}
+                    </button>
+                  </th>
+                  <th className="p-4">Computer / Hostname</th>
+                  <th className="p-4">Lab Campus</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">IP Address</th>
+                  <th className="p-4 text-right">CPU %</th>
+                  <th className="p-4 text-right">RAM %</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant font-body-md text-body-md">
+                {filteredComputers.map((comp) => {
+                  const isSelected = selectedIds.includes(comp.id);
+                  return (
+                    <tr key={comp.id} className={`hover:bg-surface-container-low transition-colors ${isSelected ? 'bg-primary/5' : ''}`}>
+                      <td className="p-4">
+                        <button onClick={() => handleToggleSelect(comp.id)}>
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-primary" />
+                          ) : (
+                            <Square className="w-4 h-4 text-outline-variant" />
+                          )}
+                        </button>
+                      </td>
+                      <td className="p-4 font-bold text-on-surface hover:text-primary cursor-pointer" onClick={() => navigate(`/computers/${comp.id}`)}>
+                        {comp.hostname}
+                      </td>
+                      <td className="p-4 text-secondary font-medium">{comp.labName || 'General Lab'}</td>
+                      <td className="p-4">
+                        <span className="flex items-center gap-2">
+                          <span className={`status-dot ${comp.status === 'ONLINE' ? 'status-healthy' : comp.status === 'CRITICAL' ? 'status-critical' : 'status-warning'}`} />
+                          <span className="font-bold text-xs">{comp.status}</span>
+                        </span>
+                      </td>
+                      <td className="p-4 font-mono-sm text-mono-sm text-secondary">{comp.ipAddress || '192.168.1.100'}</td>
+                      <td className="p-4 text-right font-mono-sm text-mono-sm font-bold">{Math.round(comp.latestCpuPercent ?? comp.cpuUsagePercent ?? 0)}%</td>
+                      <td className="p-4 text-right font-mono-sm text-mono-sm font-bold">{Math.round(comp.latestRamPercent ?? comp.memoryUsagePercent ?? 0)}%</td>
+                      <td className="p-4 text-right">
+                        <button
+                          onClick={() => navigate(`/computers/${comp.id}`)}
+                          className="px-3 py-1 bg-surface-container text-primary font-bold rounded hover:bg-surface-container-high text-xs"
+                        >
+                          Inspect
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Bulk Power Operations */}
+      {bulkActionConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 max-w-md w-full shadow-2xl animate-fade-in-up">
+            <h3 className="font-headline-md text-headline-md font-bold text-on-surface mb-2">
+              Confirm Bulk {bulkActionConfirm === 'SHUTDOWN' ? 'Shutdown' : 'Restart'}
+            </h3>
+            <p className="font-body-md text-body-md text-secondary mb-6">
+              Are you sure you want to execute remote <strong className="text-on-surface">{bulkActionConfirm}</strong> on <strong className="text-primary">{selectedIds.length}</strong> selected computers?
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setBulkActionConfirm(null)}
+                className="px-4 py-2 border border-outline-variant text-secondary rounded-lg font-bold text-xs hover:bg-surface-container"
+              >
+                Cancel
               </button>
-            </div>
-
-            <div className="space-y-3 text-xs text-slate-300">
-              <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-                <p className="font-bold text-cyan-400 flex items-center gap-2">
-                  <Terminal className="w-4 h-4" /> Step-by-Step Setup Guide:
-                </p>
-                <ol className="list-decimal list-inside space-y-2 text-slate-300">
-                  <li>Download the Windows package: <code className="text-cyan-300 font-mono">NeuroSys-Agent-Windows.zip</code></li>
-                  <li>Extract the ZIP archive to any directory on the target computer.</li>
-                  <li>Double-click <code className="text-cyan-300 font-mono">setup-agent.bat</code> (or run via CMD).</li>
-                  <li>The agent automatically detects system specs (CPU, RAM, Disk, OS, IP, MAC).</li>
-                  <li>The computer registers with the central server automatically.</li>
-                  <li>Approve the computer under <strong>Pending Registrations</strong> above.</li>
-                </ol>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-2">
-                <a
-                  href="/api/v1/download/agent-windows"
-                  download="NeuroSys-Agent-Windows.zip"
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download Windows Agent Package (.zip)</span>
-                </a>
-              </div>
+              <button
+                onClick={() => executeBulkCommand(bulkActionConfirm)}
+                className={`px-4 py-2 rounded-lg font-bold text-xs text-white shadow-md ${
+                  bulkActionConfirm === 'SHUTDOWN' ? 'bg-error hover:bg-red-700' : 'bg-amber-500 hover:bg-amber-600'
+                }`}
+              >
+                Confirm {bulkActionConfirm}
+              </button>
             </div>
           </div>
         </div>

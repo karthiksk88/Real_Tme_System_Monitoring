@@ -1,131 +1,162 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Mail, Download, Monitor, Save, Terminal, ShieldCheck } from 'lucide-react';
+import { 
+  Settings as SettingsIcon, 
+  SlidersHorizontal, 
+  ShieldCheck, 
+  Bell, 
+  Save, 
+  Database, 
+  Server,
+  Key,
+  Cpu
+} from 'lucide-react';
 
 const Settings = () => {
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [adminEmail, setAdminEmail] = useState('admin@neurosys.com');
-  const [interval, setIntervalVal] = useState(5);
-  const [saved, setSaved] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState('5');
+  const [cpuThreshold, setCpuThreshold] = useState('80');
+  const [ramThreshold, setRamThreshold] = useState('85');
+  const [tempThreshold, setTempThreshold] = useState('80');
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleSave = (e) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3000);
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div className="pb-2 border-b border-slate-800">
-        <h2 className="text-2xl font-extrabold text-slate-100 tracking-tight">System Settings & Agent Deployment</h2>
-        <p className="text-xs text-slate-400">Configure alert thresholds, email notifications, and download Monitoring Agent setup files</p>
-      </div>
-
-      {/* Monitoring Agent Installer Card */}
-      <div className="glass-panel p-6 rounded-2xl border border-cyan-500/30 bg-cyan-500/5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              <Download className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-100">NeuroSys Agent for Windows Package</h3>
-              <p className="text-xs text-slate-400">Complete distribution containing executable JAR and 1-click batch setup scripts</p>
-            </div>
+    <div className="max-w-5xl mx-auto space-y-6">
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-lowest border border-outline-variant p-6 rounded-xl shadow-sm">
+        <div>
+          <div className="flex items-center gap-3">
+            <SettingsIcon className="w-7 h-7 text-primary" />
+            <h1 className="font-display text-display text-on-background tracking-tight">System Settings & Configuration</h1>
           </div>
-
-          <a
-            href="/api/v1/download/agent-windows"
-            download="NeuroSys-Agent-Windows.zip"
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-2"
-          >
-            <Download className="w-4 h-4" />
-            <span>Download NeuroSys Agent for Windows (.zip)</span>
-          </a>
-        </div>
-
-        <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3 text-xs text-slate-300">
-          <p className="font-semibold text-slate-200 flex items-center gap-1.5">
-            <Terminal className="w-4 h-4 text-cyan-400" /> Quick Agent Installation Guide:
-          </p>
-          <ol className="list-decimal list-inside space-y-1.5 text-slate-400">
-            <li>Download <code className="text-cyan-300 font-mono">NeuroSys-Agent-Windows.zip</code> using the button above.</li>
-            <li>Extract the ZIP archive to a folder on the target computer.</li>
-            <li>Double-click <code className="text-cyan-300 font-mono">setup-agent.bat</code> to launch setup.</li>
-            <li>The agent automatically detects hardware specs and registers with the server.</li>
-          </ol>
-          <div className="p-3 rounded-lg bg-slate-950 font-mono text-[11px] text-emerald-400 border border-slate-800 select-all overflow-x-auto">
-            setup-agent.bat
-          </div>
-          <p className="text-[11px] text-slate-400 flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Monitored computers will appear in the <strong>Computers Catalog</strong> and trigger notifications on registration.
+          <p className="font-body-md text-body-md text-secondary mt-1">
+            Configure agent telemetry ingestion intervals, alert threshold limits, and Railway backend API integration policies.
           </p>
         </div>
+
+        <button
+          onClick={handleSave}
+          className="px-5 py-2.5 bg-primary hover:bg-primary-container text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition-transform active:scale-95"
+        >
+          <Save className="w-4 h-4" />
+          <span>Save Changes</span>
+        </button>
       </div>
 
-      {saved && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 font-medium">
-          Configuration settings saved successfully!
+      {savedSuccess && (
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-700 text-xs font-bold animate-fade-in-up">
+          ✓ Configuration settings saved successfully.
         </div>
       )}
 
-      <form onSubmit={handleSave} className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
-        <div className="space-y-4">
-          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-            <Mail className="w-4 h-4 text-cyan-400" /> Email Notifications
+      {/* Form Grid */}
+      <div className="space-y-6">
+        {/* Telemetry Polling Section */}
+        <section className="card-elevated p-6 space-y-4">
+          <h3 className="font-headline-md text-headline-md font-bold text-on-surface flex items-center gap-2">
+            <SlidersHorizontal className="w-5 h-5 text-primary" />
+            Agent Polling & Ingestion Intervals
           </h3>
 
-          <div className="flex items-center justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <p className="text-xs font-semibold text-slate-200">Critical Alert Email Dispatches</p>
-              <p className="text-[11px] text-slate-400">Send instant SMTP emails for critical CPU/RAM/Disk alerts</p>
+              <label className="font-label-md text-label-md text-secondary font-bold block mb-1">
+                Agent Polling Interval (Seconds)
+              </label>
+              <select
+                value={pollingInterval}
+                onChange={(e) => setPollingInterval(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-semibold text-on-surface focus:outline-none focus:border-primary"
+              >
+                <option value="3">3 Seconds (High Frequency)</option>
+                <option value="5">5 Seconds (Standard Recommended)</option>
+                <option value="10">10 Seconds (Low Network Workload)</option>
+                <option value="30">30 Seconds (Minimal Telemetry)</option>
+              </select>
+              <p className="text-[11px] text-secondary mt-1">Frequency at which OSHI agent posts hardware metrics to backend REST API.</p>
             </div>
-            <input
-              type="checkbox"
-              checked={emailAlerts}
-              onChange={(e) => setEmailAlerts(e.target.checked)}
-              className="w-4 h-4 rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-cyan-500"
-            />
-          </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Administrator Email</label>
-            <input
-              type="email"
-              value={adminEmail}
-              onChange={(e) => setAdminEmail(e.target.value)}
-              className="w-full max-w-md px-3.5 py-2 bg-slate-900 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
-            />
+            <div>
+              <label className="font-label-md text-label-md text-secondary font-bold block mb-1">
+                Railway Production API URL
+              </label>
+              <input
+                type="text"
+                readOnly
+                value="https://realtmesystemmonitoring-production.up.railway.app/api/v1"
+                className="w-full px-3.5 py-2.5 bg-surface-container-high border border-outline-variant rounded-lg text-xs font-mono font-bold text-secondary cursor-not-allowed"
+              />
+              <p className="text-[11px] text-secondary mt-1">Production Railway server endpoint for agent heartbeat and telemetry REST calls.</p>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div className="pt-4 border-t border-slate-800 space-y-4">
-          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-            <SettingsIcon className="w-4 h-4 text-cyan-400" /> Agent Sampling Rules
+        {/* Incident Threshold Limits */}
+        <section className="card-elevated p-6 space-y-4">
+          <h3 className="font-headline-md text-headline-md font-bold text-on-surface flex items-center gap-2">
+            <Bell className="w-5 h-5 text-primary" />
+            Telemetry Incident Alert Thresholds
           </h3>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Telemetry Collection Interval (Seconds)</label>
-            <input
-              type="number"
-              value={interval}
-              onChange={(e) => setIntervalVal(Number(e.target.value))}
-              min="1"
-              max="60"
-              className="w-32 px-3.5 py-2 bg-slate-900 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
-            />
-          </div>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="font-label-md text-label-md text-secondary font-bold block mb-1">
+                CPU Warning Threshold (%)
+              </label>
+              <input
+                type="number"
+                value={cpuThreshold}
+                onChange={(e) => setCpuThreshold(e.target.value)}
+                className="w-full px-3.5 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-bold text-on-surface focus:outline-none focus:border-primary"
+              />
+            </div>
 
-        <div className="pt-4 border-t border-slate-800 flex justify-end">
-          <button
-            type="submit"
-            className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all"
-          >
-            <Save className="w-4 h-4" />
-            <span>Save Settings</span>
-          </button>
-        </div>
-      </form>
+            <div>
+              <label className="font-label-md text-label-md text-secondary font-bold block mb-1">
+                RAM Warning Threshold (%)
+              </label>
+              <input
+                type="number"
+                value={ramThreshold}
+                onChange={(e) => setRamThreshold(e.target.value)}
+                className="w-full px-3.5 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-bold text-on-surface focus:outline-none focus:border-primary"
+              />
+            </div>
+
+            <div>
+              <label className="font-label-md text-label-md text-secondary font-bold block mb-1">
+                Thermal CPU Limit (°C)
+              </label>
+              <input
+                type="number"
+                value={tempThreshold}
+                onChange={(e) => setTempThreshold(e.target.value)}
+                className="w-full px-3.5 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-bold text-on-surface focus:outline-none focus:border-primary"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Security & Authorization */}
+        <section className="card-elevated p-6 space-y-4">
+          <h3 className="font-headline-md text-headline-md font-bold text-on-surface flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-primary" />
+            Security & Agent Onboarding Policy
+          </h3>
+
+          <div className="p-4 bg-surface-container-low border border-outline-variant rounded-lg flex items-center justify-between gap-4">
+            <div>
+              <h4 className="font-body-md text-body-md font-bold text-on-surface">Auto-Approve Registered Agents</h4>
+              <p className="font-body-md text-body-md text-secondary mt-0.5">Automatically onboard new monitoring agents upon setup-agent.bat execution.</p>
+            </div>
+            <input type="checkbox" defaultChecked className="w-5 h-5 accent-primary rounded cursor-pointer" />
+          </div>
+        </section>
+      </div>
     </div>
   );
 };

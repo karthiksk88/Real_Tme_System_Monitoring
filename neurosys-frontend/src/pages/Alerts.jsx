@@ -1,185 +1,215 @@
 import React, { useState, useEffect } from 'react';
 import { metricsService } from '../services/metricsService';
-import { Bell, AlertTriangle, CheckCircle, Info, ShieldAlert, Clock, CheckCircle2 } from 'lucide-react';
+import { 
+  Bell, 
+  AlertTriangle, 
+  CheckCircle2, 
+  XCircle, 
+  Info, 
+  RefreshCw, 
+  Filter, 
+  ShieldAlert, 
+  Clock, 
+  ChevronRight,
+  Search,
+  Check
+} from 'lucide-react';
 
 const Alerts = () => {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState('ACTIVE');
+  const [selectedFilter, setSelectedFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'RESOLVED'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [resolvingId, setResolvingId] = useState(null);
 
   useEffect(() => {
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 2000);
+    const interval = setInterval(fetchAlerts, 5000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchAlerts = async () => {
     try {
       const res = await metricsService.getAllAlerts();
-      const alertList = res?.data || (Array.isArray(res) ? res : []);
-      if (Array.isArray(alertList)) {
-        setAlerts(alertList);
+      const list = res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list)) {
+        setAlerts(list);
       }
     } catch (e) {
-      console.error("Failed to fetch alerts", e);
+      console.error('Error fetching alerts', e);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredAlerts = alerts.filter((a) => {
-    if (filterStatus === 'ACTIVE') return a.status === 'OPEN' || a.status === 'ACKNOWLEDGED';
-    if (filterStatus === 'RESOLVED') return a.status === 'RESOLVED';
-    return true;
-  });
-
-  const handleAcknowledge = async (alertId) => {
-    try {
-      await metricsService.acknowledgeAlert(alertId);
-      fetchAlerts();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleResolve = async (alertId) => {
+  const handleResolveAlert = async (alertId) => {
+    setResolvingId(alertId);
     try {
       await metricsService.resolveAlert(alertId);
       fetchAlerts();
     } catch (e) {
-      console.error(e);
+      console.error('Error resolving alert', e);
+    } finally {
+      setResolvingId(null);
     }
   };
 
-  const formatTime = (ts) => {
-    if (!ts) return 'N/A';
-    try {
-      return new Date(ts).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium' });
-    } catch (e) {
-      return ts;
-    }
-  };
+  const filteredAlerts = alerts.filter((alert) => {
+    const matchesSearch = 
+      (alert.message || alert.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (alert.computerHostname || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+    const isResolved = alert.resolved || alert.status === 'RESOLVED';
+    const matchesFilter = 
+      selectedFilter === 'ALL' ||
+      (selectedFilter === 'ACTIVE' && !isResolved) ||
+      (selectedFilter === 'RESOLVED' && isResolved);
+
+    return matchesSearch && matchesFilter;
+  });
+
+  const activeAlertsCount = alerts.filter(a => !a.resolved && a.status !== 'RESOLVED').length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-lowest border border-outline-variant p-6 rounded-xl shadow-sm">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-100 tracking-tight flex items-center gap-2">
-            Persistent Alert Center
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              State Engine & Deduplication
-            </span>
-          </h2>
-          <p className="text-xs text-slate-400">Critical threshold and persistent problem incidents with zero single-spike noise</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
-            <button
-              onClick={() => setFilterStatus('ACTIVE')}
-              className={`px-3 py-1 rounded-lg font-semibold transition-colors ${filterStatus === 'ACTIVE' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-            >
-              Active ({alerts.filter(a => a.status === 'OPEN' || a.status === 'ACKNOWLEDGED').length})
-            </button>
-            <button
-              onClick={() => setFilterStatus('RESOLVED')}
-              className={`px-3 py-1 rounded-lg font-semibold transition-colors ${filterStatus === 'RESOLVED' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-            >
-              Resolved ({alerts.filter(a => a.status === 'RESOLVED').length})
-            </button>
-            <button
-              onClick={() => setFilterStatus('ALL')}
-              className={`px-3 py-1 rounded-lg font-semibold transition-colors ${filterStatus === 'ALL' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-            >
-              All
-            </button>
+          <div className="flex items-center gap-3">
+            <Bell className="w-7 h-7 text-primary" />
+            <h1 className="font-display text-display text-on-background tracking-tight">System Alerts & Audit Log</h1>
           </div>
-          <button onClick={fetchAlerts} className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white">
-            Refresh
-          </button>
+          <p className="font-body-md text-body-md text-secondary mt-1">
+            Real-time telemetry incident detection, persistent hardware alerts, and audit history across computer labs.
+          </p>
+        </div>
+
+        <button
+          onClick={fetchAlerts}
+          className="p-2.5 rounded-lg border border-outline-variant text-secondary hover:bg-surface-container hover:text-primary transition-colors flex items-center gap-2 text-xs font-bold shadow-sm"
+        >
+          <RefreshCw className="w-4 h-4" />
+          <span>Refresh Feed</span>
+        </button>
+      </div>
+
+      {/* Filter & Search Bar */}
+      <div className="card-elevated p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* Search */}
+        <div className="relative w-full md:w-80">
+          <Search className="w-4 h-4 text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search alert message, PC..."
+            className="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-medium text-on-surface focus:outline-none focus:border-primary transition-all"
+          />
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg border border-outline-variant">
+          {[
+            { id: 'ALL', label: `All Alerts (${alerts.length})` },
+            { id: 'ACTIVE', label: `Active Incidents (${activeAlertsCount})` },
+            { id: 'RESOLVED', label: 'Resolved History' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setSelectedFilter(tab.id)}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                selectedFilter === tab.id
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-secondary hover:text-on-surface'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {loading ? (
-        <div className="p-8 text-center text-slate-400 text-xs italic">Evaluating persistent incident store...</div>
-      ) : filteredAlerts.length === 0 ? (
-        <div className="p-8 glass-panel rounded-2xl border border-slate-800 text-center text-slate-400 text-xs">
-          🎉 No {filterStatus.toLowerCase()} persistent system health incidents! All monitored endpoints operating within normal bounds.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredAlerts.map((a) => (
-            <div key={a.id} className="p-5 rounded-2xl glass-panel border border-slate-800 space-y-4 shadow-lg">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-start space-x-3.5">
-                  <div className={`p-3 rounded-xl flex-shrink-0 ${a.severity === 'CRITICAL' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
-                    <AlertTriangle className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="text-sm font-bold text-slate-100">{a.title}</h4>
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${a.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
-                        {a.severity}
-                      </span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${a.status === 'RESOLVED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : a.status === 'ACKNOWLEDGED' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                        {a.status}
-                      </span>
-                      {a.occurrenceCount > 1 && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-                          Active Incident (Confirmed {a.occurrenceCount}x)
+      {/* Alerts Feed */}
+      <div className="space-y-4">
+        {filteredAlerts.length > 0 ? (
+          filteredAlerts.map((alert) => {
+            const isResolved = alert.resolved || alert.status === 'RESOLVED';
+            const isCritical = alert.severity === 'CRITICAL' || alert.type?.includes('CRITICAL');
+
+            return (
+              <div
+                key={alert.id}
+                className={`card-elevated p-5 transition-all ${
+                  isResolved 
+                    ? 'opacity-75 bg-surface-container-low/50' 
+                    : isCritical 
+                    ? 'border-l-4 border-l-error bg-error-container/10' 
+                    : 'border-l-4 border-l-[#f59e0b]'
+                }`}
+              >
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 mt-0.5 ${
+                      isResolved ? 'bg-emerald-100 text-emerald-700' : isCritical ? 'bg-error-container text-error' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {isResolved ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className={`font-label-md text-label-md px-2 py-0.5 rounded font-bold ${
+                          isResolved ? 'bg-emerald-500 text-white' : isCritical ? 'bg-error text-on-error' : 'bg-[#f59e0b] text-white'
+                        }`}>
+                          {isResolved ? 'RESOLVED' : alert.severity || 'ACTIVE ALERT'}
                         </span>
+                        <span className="font-mono-sm text-mono-sm font-bold text-on-surface bg-surface-container px-2 py-0.5 rounded border border-outline-variant">
+                          {alert.computerHostname || 'Computer Asset'}
+                        </span>
+                        {alert.occurrenceCount > 1 && (
+                          <span className="font-label-md text-label-md bg-surface-container-high text-primary px-2 py-0.5 rounded font-bold">
+                            Detected {alert.occurrenceCount}x
+                          </span>
+                        )}
+                        <span className="font-mono-sm text-mono-sm text-secondary flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {alert.createdAt ? new Date(alert.createdAt).toLocaleString() : 'Recently'}
+                        </span>
+                      </div>
+
+                      <h3 className="font-headline-md text-headline-md font-bold text-on-surface">
+                        {alert.message || alert.title || 'Telemetry Threshold Exceeded'}
+                      </h3>
+
+                      {alert.recommendedAction && (
+                        <p className="font-body-md text-body-md text-secondary mt-1.5">
+                          <strong className="text-on-surface font-semibold">Remediation Action:</strong> {alert.recommendedAction}
+                        </p>
                       )}
                     </div>
-                    <p className="text-xs text-slate-300 font-medium mt-1">{a.message}</p>
                   </div>
-                </div>
 
-                <div className="flex items-center space-x-2 self-start sm:self-center">
-                  {a.status === 'OPEN' && (
-                    <button onClick={() => handleAcknowledge(a.id)} className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition-all">
-                      Acknowledge
-                    </button>
-                  )}
-                  {a.status !== 'RESOLVED' && (
-                    <button onClick={() => handleResolve(a.id)} className="px-3 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-xs font-semibold text-cyan-400 hover:bg-cyan-500/30 transition-all">
-                      Resolve Incident
+                  {!isResolved && (
+                    <button
+                      onClick={() => handleResolveAlert(alert.id)}
+                      disabled={resolvingId === alert.id}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-2 shadow-sm transition-transform active:scale-95 flex-shrink-0"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>{resolvingId === alert.id ? 'Resolving...' : 'Acknowledge & Resolve'}</span>
                     </button>
                   )}
                 </div>
               </div>
-
-              {/* Evidence Bullet Points */}
-              {a.evidence && a.evidence.length > 0 && (
-                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1 text-xs">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Evidence Supporting Incident:</p>
-                  <ul className="list-disc list-inside space-y-1 text-slate-300">
-                    {a.evidence.map((ev, idx) => (
-                      <li key={idx} className="text-xs">{ev}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Actionable Solution Banner */}
-              {a.recommendedAction && (
-                <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-200 flex items-start space-x-2">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <strong className="text-cyan-300 block">Recommended Action:</strong>
-                    <span>{a.recommendedAction}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Incident Footer Timestamps */}
-              <div className="flex flex-wrap items-center justify-between text-[10px] font-mono text-slate-500 border-t border-slate-800/80 pt-2">
-                <span>First Detected: {formatTime(a.firstDetectedAt || a.triggeredAt)}</span>
-                <span>Last Telemetry Update: {formatTime(a.lastDetectedAt || a.triggeredAt)}</span>
-                {a.resolvedAt && <span className="text-emerald-400">Resolved At: {formatTime(a.resolvedAt)}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            );
+          })
+        ) : (
+          <div className="card-elevated p-12 text-center text-secondary">
+            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3 opacity-80" />
+            <h3 className="font-headline-md text-headline-md font-bold text-on-surface">All Clear — No Incidents Found</h3>
+            <p className="font-body-md text-body-md text-secondary mt-1">There are no active or matching system alerts at this time.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

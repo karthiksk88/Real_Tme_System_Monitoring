@@ -1,0 +1,306 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>NeuroSys - Software Inventory</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "error-container": "#ffdad6",
+                        "on-tertiary-container": "#ffd2be",
+                        "surface-variant": "#e4e1ee",
+                        "on-background": "#1b1b24",
+                        "surface": "#fcf8ff",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#d0e1fb",
+                        "primary-fixed": "#e2dfff",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "background": "#fcf8ff",
+                        "secondary-fixed": "#d3e4fe",
+                        "primary": "#3525cd",
+                        "surface-tint": "#4d44e3",
+                        "surface-bright": "#fcf8ff",
+                        "on-surface-variant": "#464555",
+                        "on-secondary-container": "#54647a",
+                        "primary-container": "#4f46e5",
+                        "inverse-surface": "#302f39",
+                        "surface-container-low": "#f5f2ff",
+                        "outline-variant": "#c7c4d8",
+                        "surface-container-high": "#eae6f4",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "error": "#ba1a1a",
+                        "inverse-on-surface": "#f3effc",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-primary-container": "#dad7ff",
+                        "surface-dim": "#dcd8e5",
+                        "on-secondary-fixed": "#0b1c30",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "inverse-primary": "#c3c0ff",
+                        "surface-container": "#f0ecf9",
+                        "on-surface": "#1b1b24",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-primary": "#ffffff",
+                        "surface-container-highest": "#e4e1ee",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "secondary": "#505f76",
+                        "tertiary": "#7e3000",
+                        "outline": "#777587",
+                        "tertiary-container": "#a44100",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#351000",
+                        "on-primary-fixed": "#0f0069"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.125rem",
+                        lg: "0.25rem",
+                        xl: "0.5rem",
+                        full: "0.75rem"
+                    },
+                    spacing: {
+                        gutter: "16px",
+                        "sidebar-collapsed": "72px",
+                        "container-padding": "24px",
+                        unit: "4px",
+                        "sidebar-width": "260px"
+                    },
+                    fontFamily: {
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "mono-sm": ["Geist"],
+                        "headline-lg": ["Geist"],
+                        display: ["Geist"]
+                    },
+                    fontSize: {
+                        "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+                        "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+                        "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.02em", fontWeight: "500" }],
+                        "headline-md": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+                        "mono-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+                        "headline-lg": ["28px", { lineHeight: "36px", letterSpacing: "-0.01em", fontWeight: "600" }],
+                        display: ["36px", { lineHeight: "44px", letterSpacing: "-0.02em", fontWeight: "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Dynamic Effects and Motion */
+        @keyframes cascade {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .cascade-item {
+            opacity: 0;
+            animation: cascade 0.5s ease-out forwards;
+        }
+        .cascade-item:nth-child(1) { animation-delay: 0.1s; }
+        .cascade-item:nth-child(2) { animation-delay: 0.2s; }
+        .cascade-item:nth-child(3) { animation-delay: 0.3s; }
+        .cascade-item:nth-child(4) { animation-delay: 0.4s; }
+
+        @keyframes pulse-attention {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .alert-pulse {
+            animation: pulse-attention 2s infinite ease-in-out;
+            transform-origin: left center;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md h-screen overflow-hidden flex">
+<!-- NavigationDrawer (Sidebar) -->
+<nav class="bg-surface dark:bg-on-background w-sidebar-width h-screen fixed left-0 top-0 border-r border-outline-variant dark:border-outline flex flex-col py-gutter px-4 z-50">
+<!-- Brand -->
+<div class="mb-8 mt-2 px-4">
+<h1 class="font-display text-display text-primary dark:text-primary-fixed tracking-tight">NeuroSys</h1>
+</div>
+<!-- Nav Items -->
+<div class="flex flex-col gap-2 flex-1">
+<!-- Computers (Inactive) -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded-full" href="#">
+<span class="material-symbols-outlined">monitor</span>
+<span class="font-label-md text-label-md">Computers</span>
+</a>
+<!-- Software (Active) -->
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container dark:bg-on-secondary-fixed-variant text-on-secondary-container dark:text-on-secondary-fixed rounded-full opacity-80 scale-[0.98] transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+<span class="font-label-md text-label-md">Software</span>
+</a>
+<!-- Lab Readiness (Inactive) -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded-full" href="#">
+<span class="material-symbols-outlined">fact_check</span>
+<span class="font-label-md text-label-md">Lab Readiness</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col ml-[260px] relative h-full overflow-y-auto bg-surface-container-lowest">
+<!-- TopAppBar -->
+<header class="bg-surface/80 dark:bg-background/80 backdrop-blur-md w-full sticky top-0 z-40 border-b border-outline-variant dark:border-outline flex justify-between items-center px-container-padding h-16">
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant dark:text-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-highest rounded-full p-2 transition-colors">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h2 class="font-headline-md text-headline-md text-primary dark:text-primary-fixed font-bold">Lab Overview</h2>
+</div>
+<button class="text-on-surface-variant dark:text-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-highest rounded-full p-2 transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</header>
+<!-- Canvas / Page Content -->
+<main class="flex-1 px-container-padding py-8 max-w-7xl mx-auto w-full">
+<!-- Page Header -->
+<div class="mb-10">
+<h1 class="font-headline-lg text-headline-lg text-on-background mb-2">Software Inventory</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Check which applications are installed across your computers.</p>
+</div>
+<!-- Search Section -->
+<div class="mb-12 relative w-full max-w-xl focus-within:max-w-2xl transition-all duration-500 ease-out">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input autofocus="" class="w-full h-12 pl-12 pr-4 bg-surface border border-outline-variant rounded-lg focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-background transition-shadow shadow-sm" placeholder="Search software..." type="text" value="py">
+</div>
+<!-- Fuzzy Search Suggestions UI (Demonstrative) -->
+<div class="absolute top-full left-0 w-full mt-2 bg-surface border border-outline-variant rounded-lg shadow-sm z-10 overflow-hidden">
+<ul class="py-2">
+<li class="px-4 py-2 hover:bg-surface-container cursor-pointer flex items-center justify-between transition-opacity duration-300">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline">terminal</span>
+<span class="font-body-md text-body-md"><span class="font-semibold text-primary">Py</span>thon</span>
+</div>
+<span class="font-mono-sm text-mono-sm text-on-surface-variant">38 installs</span>
+</li>
+<li class="px-4 py-2 hover:bg-surface-container cursor-pointer flex items-center justify-between transition-opacity duration-300">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline">code</span>
+<span class="font-body-md text-body-md"><span class="font-semibold text-primary">Py</span>Charm CE</span>
+</div>
+<span class="font-mono-sm text-mono-sm text-on-surface-variant">12 installs</span>
+</li>
+</ul>
+</div>
+</div>
+<!-- Inventory Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+<!-- Card 1: Python -->
+<div class="cascade-item bg-surface rounded-xl border border-outline-variant p-6 hover:border-primary-fixed hover:-translate-y-1 hover:shadow-md hover:bg-surface-container-lowest transition-all duration-300 group">
+<div class="flex items-start justify-between mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">terminal</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-background group-hover:text-primary transition-colors">Python</h3>
+</div>
+<div class="px-2 py-1 bg-surface-container-highest rounded font-mono-sm text-mono-sm text-on-surface-variant">
+                            IDE / Runtime
+                        </div>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-center pb-3 border-b border-surface-variant">
+<span class="font-body-md text-body-md text-on-surface-variant">Installed</span>
+<span class="font-label-md text-label-md text-on-background font-semibold">38 Computers</span>
+</div>
+<div class="flex justify-between items-start pb-3 border-b border-surface-variant">
+<span class="font-body-md text-body-md text-on-surface-variant">Versions</span>
+<div class="flex flex-col items-end gap-1">
+<span class="font-mono-sm text-mono-sm bg-surface-container px-2 py-0.5 rounded">3.12.6</span>
+<span class="font-mono-sm text-mono-sm bg-surface-container px-2 py-0.5 rounded">3.11.9</span>
+</div>
+</div>
+<!-- Status Alert -->
+<div class="flex items-center gap-2 text-error pt-2 alert-pulse">
+<span class="material-symbols-outlined text-error" style="font-size: 16px;">error</span>
+<span class="font-label-md text-label-md text-error">Outdated on 4 PCs</span>
+</div>
+</div>
+</div>
+<!-- Card 2: Visual Studio Code -->
+<div class="cascade-item bg-surface rounded-xl border border-outline-variant p-6 hover:border-primary-fixed hover:-translate-y-1 hover:shadow-md hover:bg-surface-container-lowest transition-all duration-300 group">
+<div class="flex items-start justify-between mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined">integration_instructions</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-background group-hover:text-primary transition-colors">Visual Studio Code</h3>
+</div>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-center pb-3 border-b border-surface-variant">
+<span class="font-body-md text-body-md text-on-surface-variant">Installed</span>
+<span class="font-label-md text-label-md text-on-background font-semibold">40 Computers</span>
+</div>
+<div class="flex justify-between items-start pb-3 border-b border-surface-variant">
+<span class="font-body-md text-body-md text-on-surface-variant">Versions</span>
+<div class="flex flex-col items-end gap-1">
+<span class="font-mono-sm text-mono-sm bg-surface-container px-2 py-0.5 rounded">1.87.2</span>
+</div>
+</div>
+<!-- Status Success -->
+<div class="flex items-center gap-2 text-primary pt-2">
+<span class="material-symbols-outlined text-primary" style="font-size: 16px;">check_circle</span>
+<span class="font-label-md text-label-md text-primary">All up to date</span>
+</div>
+</div>
+</div>
+<!-- Card 3: Java JDK -->
+<div class="cascade-item bg-surface rounded-xl border border-outline-variant p-6 hover:border-primary-fixed hover:-translate-y-1 hover:shadow-md hover:bg-surface-container-lowest transition-all duration-300 group">
+<div class="flex items-start justify-between mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed">
+<span class="material-symbols-outlined">local_cafe</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-background group-hover:text-primary transition-colors">Java JDK</h3>
+</div>
+<div class="px-2 py-1 bg-surface-container-highest rounded font-mono-sm text-mono-sm text-on-surface-variant">
+                            Runtime
+                        </div>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-center pb-3 border-b border-surface-variant">
+<span class="font-body-md text-body-md text-on-surface-variant">Installed</span>
+<span class="font-label-md text-label-md text-on-background font-semibold">35 Computers</span>
+</div>
+<div class="flex justify-between items-start pb-3 border-b border-surface-variant">
+<span class="font-body-md text-body-md text-on-surface-variant">Versions</span>
+<div class="flex flex-col items-end gap-1">
+<span class="font-mono-sm text-mono-sm bg-surface-container px-2 py-0.5 rounded">17.0.2</span>
+</div>
+</div>
+<!-- Status Neutral/Info -->
+<div class="flex items-center gap-2 text-on-surface-variant pt-2">
+<span class="material-symbols-outlined" style="font-size: 16px;">info</span>
+<span class="font-label-md text-label-md">Managed by IT Policy</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

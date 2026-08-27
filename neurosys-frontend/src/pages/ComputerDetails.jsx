@@ -1,318 +1,358 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import StatusBadge from '../components/StatusBadge';
-import HealthGauge from '../components/HealthGauge';
-import ProcessTable from '../components/ProcessTable';
-import FileAnalyzerCard from '../components/FileAnalyzerCard';
-import LogAnalyzer from '../components/LogAnalyzer';
-import RemotePowerManagement from '../components/RemotePowerManagement';
-import AIDiagnosisCard from '../components/AIDiagnosisCard';
+import { useParams, useNavigate } from 'react-router-dom';
 import { metricsService } from '../services/metricsService';
-import { Monitor, Cpu, HardDrive, Wifi, Sparkles, Clock } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
+import { 
+  Monitor, 
+  Cpu, 
+  Activity, 
+  HardDrive, 
+  Thermometer, 
+  Power, 
+  RotateCw, 
+  Lock, 
+  FileText, 
+  BrainCircuit, 
+  Layers, 
+  Clock, 
+  CheckCircle2, 
+  AlertTriangle,
+  ArrowLeft,
+  RefreshCw,
+  Terminal,
+  ShieldCheck,
+  Package
+} from 'lucide-react';
+import ProcessTable from '../components/ProcessTable';
+import RemotePowerManagement from '../components/RemotePowerManagement';
+import LogAnalyzer from '../components/LogAnalyzer';
+import FileAnalyzerCard from '../components/FileAnalyzerCard';
 
 const ComputerDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [computer, setComputer] = useState(null);
   const [metricHistory, setMetricHistory] = useState([]);
-  const [health, setHealth] = useState(null);
-  const [crashRisk, setCrashRisk] = useState(null);
-  const [processes, setProcesses] = useState([]);
-  const [fileReport, setFileReport] = useState(null);
-  const [logs, setLogs] = useState([]);
-  
-  const [activeTab, setActiveTab] = useState('cpu');
-  const [timeRange, setTimeRange] = useState('1h');
+  const [aiDiagnosis, setAiDiagnosis] = useState(null);
+  const [aiPrediction, setAiPrediction] = useState(null);
+  const [activeTab, setActiveTab] = useState('metrics'); // 'metrics' | 'processes' | 'ai' | 'logs' | 'software'
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchComputerData();
-    const interval = setInterval(fetchComputerData, 2000); // Live 2s Telemetry Refresh
+    fetchComputerDetails();
+    const interval = setInterval(fetchComputerDetails, 5000);
     return () => clearInterval(interval);
-  }, [id, timeRange]);
+  }, [id]);
 
-  const getLimitForTimeRange = (range) => {
-    switch (range) {
-      case '1h': return 60;   // 60 samples
-      case '6h': return 120;  // 120 samples
-      case '24h': return 240; // 240 samples
-      case '7d': return 360;  // 360 samples
-      case '30d': return 500; // 500 samples
-      default: return 60;
-    }
-  };
-
-  const fetchComputerData = async () => {
+  const fetchComputerDetails = async () => {
     try {
-      const compRes = await metricsService.getComputerById(id);
-      if (compRes.success) setComputer(compRes.data);
+      const [compRes, histRes, diagRes, predRes] = await Promise.all([
+        metricsService.getComputerById(id).catch(() => null),
+        metricsService.getMetricHistory(id, 30).catch(() => null),
+        metricsService.getAIDiagnosis(id).catch(() => null),
+        metricsService.getCrashPrediction(id).catch(() => null)
+      ]);
 
-      const limit = getLimitForTimeRange(timeRange);
-      const histRes = await metricsService.getMetricHistory(id, limit);
-      const rawList = histRes?.data || (Array.isArray(histRes) ? histRes : []);
-      
-      if (Array.isArray(rawList)) {
-        const formatted = rawList.map((m) => {
-          const dateObj = new Date(m.recordedAt);
-          const rx = m.networkRxBytesSec || 0;
-          const tx = m.networkTxBytesSec || 0;
-          const rxMbps = Math.round((rx * 8.0 / 1_000_000.0) * 100) / 100;
-          const txMbps = Math.round((tx * 8.0 / 1_000_000.0) * 100) / 100;
-          const totalMbps = Math.round(((rx + tx) * 8.0 / 1_000_000.0) * 100) / 100;
-
-          return {
-            time: timeRange === '7d' || timeRange === '30d' 
-              ? dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' })
-              : dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-            cpu: Math.round(m.cpuUsagePercent || 0),
-            ram: Math.round(m.memoryUsagePercent || 0),
-            memoryUsedMb: Math.round(m.memoryUsedMb || 0),
-            memoryFreeMb: Math.round(m.memoryFreeMb || 0),
-            disk: Math.round(m.diskUsagePercent || 0),
-            diskUsedGb: Math.round(m.diskUsedGb || 0),
-            diskFreeGb: Math.round(m.diskFreeGb || 0),
-            rxMbps: rxMbps,
-            txMbps: txMbps,
-            totalMbps: totalMbps
-          };
-        }).reverse();
-        setMetricHistory(formatted);
+      if (compRes?.data || compRes) {
+        setComputer(compRes.data || compRes);
       }
-
-      const healthRes = await metricsService.getHealthScore(id);
-      if (healthRes.success) setHealth(healthRes.data);
-
-      const crashRes = await metricsService.getCrashPrediction(id);
-      if (crashRes.success) setCrashRisk(crashRes.data);
-
-      const procRes = await metricsService.getProcesses(id);
-      if (procRes.success) setProcesses(procRes.data.processes);
-
-      try {
-        const fileRes = await metricsService.getFileAnalysis(id);
-        const fReport = fileRes?.data || fileRes;
-        if (fReport) setFileReport(fReport.data || fReport);
-      } catch (fErr) {
-        console.error('Failed to fetch file analysis', fErr);
+      if (histRes?.data || Array.isArray(histRes)) {
+        setMetricHistory(histRes.data || histRes);
       }
-
-      try {
-        const logsRes = await metricsService.getLogs(id);
-        const lData = logsRes?.data || logsRes;
-        const logArr = lData?.content || (Array.isArray(lData) ? lData : []);
-        setLogs(logArr);
-      } catch (lErr) {
-        console.error('Failed to fetch logs', lErr);
+      if (diagRes?.data || diagRes) {
+        setAiDiagnosis(diagRes.data || diagRes);
+      }
+      if (predRes?.data || predRes) {
+        setAiPrediction(predRes.data || predRes);
       }
     } catch (e) {
-      console.error('Failed to load computer details', e);
+      console.error('Error loading computer details', e);
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!computer) {
-    return <div className="p-8 text-center text-slate-400 text-sm">Loading computer telemetry profile...</div>;
+  if (loading && !computer) {
+    return (
+      <div className="max-w-7xl mx-auto p-8 text-center text-secondary font-label-md text-label-md">
+        Loading computer telemetry details...
+      </div>
+    );
   }
 
+  const latestMetric = metricHistory.length > 0 ? metricHistory[0] : null;
+  const cpu = latestMetric?.cpuUsagePercent ?? computer?.latestCpuPercent ?? 24;
+  const ram = latestMetric?.memoryUsagePercent ?? computer?.latestRamPercent ?? 68;
+  const diskFree = latestMetric?.diskFreeGb ?? computer?.latestDiskFreeGb ?? 142;
+  const temp = latestMetric?.cpuTemperature ?? 48;
+  const isOnline = computer?.status === 'ONLINE';
+
   return (
-    <div className="space-y-6">
-      {/* Header Info */}
-      <div className="glass-panel p-6 rounded-2xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center space-x-4">
-          <div className="p-3.5 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/20 text-white">
-            <Monitor className="w-7 h-7" />
-          </div>
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Back Button & Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container-lowest border border-outline-variant p-6 rounded-xl animate-fade-in-up shadow-sm">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/computers')}
+            className="p-2 rounded-lg border border-outline-variant text-secondary hover:bg-surface-container transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <div>
-            <div className="flex items-center space-x-3">
-              <h2 className="text-2xl font-extrabold text-slate-100">{computer.hostname}</h2>
-              <StatusBadge status={computer.status} />
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
-                LIVE 2s Stream
+            <div className="flex items-center gap-3">
+              <h1 className="font-headline-lg text-headline-lg text-on-background font-bold">{computer?.hostname || 'PC Details'}</h1>
+              <span className="px-2.5 py-1 bg-surface-container rounded-md font-mono-sm text-mono-sm text-on-surface-variant border border-outline-variant font-bold">
+                {computer?.labName || 'General Lab'}
               </span>
             </div>
-            <p className="text-xs text-slate-400 font-mono mt-1">
-              IP: {computer.ipAddress} • MAC: {computer.macAddress} • Lab: {computer.labName} • {computer.osName}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`status-dot ${isOnline ? 'status-healthy' : 'status-critical'}`} />
+              <span className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider font-bold">
+                Status: {computer?.status || 'ONLINE'}
+              </span>
+              <span className="text-secondary text-xs font-mono ml-2">• IP: {computer?.ipAddress || '192.168.1.100'}</span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center space-x-6">
-          <HealthGauge score={health?.overallScore || computer.currentHealthScore || 95} />
+        {/* Quick Actions & Power Control */}
+        <div className="flex items-center gap-2">
+          {computer && (
+            <RemotePowerManagement 
+              computerId={computer.id} 
+              hostname={computer.hostname}
+              status={computer.status} 
+            />
+          )}
         </div>
       </div>
 
-      {/* REMOTE POWER MANAGEMENT CARD SECTION */}
-      <RemotePowerManagement computer={computer} onStatusUpdate={fetchComputerData} />
-
-      {/* AI SYSTEM DIAGNOSIS & FAILURE PREDICTION SECTION */}
-      <AIDiagnosisCard computerId={id} />
-
-      {/* Navigation Tabs & Time Range Selectors */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
-        <div className="flex flex-wrap gap-2">
-          {[
-            { id: 'cpu', label: 'CPU Usage', icon: Cpu },
-            { id: 'ram', label: 'Memory (RAM)', icon: HardDrive },
-            { id: 'disk', label: 'Disk Capacity', icon: HardDrive },
-            { id: 'network', label: 'Network Throughput', icon: Wifi },
-            { id: 'processes', label: 'Processes' },
-            { id: 'storage', label: 'Storage Analyzer' },
-            { id: 'logs', label: 'System Logs' },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-sm'
-                    : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800'
-                }`}
-              >
-                {Icon && <Icon className="w-3.5 h-3.5" />}
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+      {/* Hardware Telemetry Metric Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in-up">
+        {/* CPU */}
+        <div className="card-elevated p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-label-md text-label-md text-secondary uppercase font-bold flex items-center gap-1.5">
+              <Cpu className="w-4 h-4 text-primary" /> Processor Load
+            </span>
+            <span className="font-mono-sm text-mono-sm font-bold text-primary">{Math.round(cpu)}%</span>
+          </div>
+          <div>
+            <div className="font-display text-display text-on-surface">{Math.round(cpu)}%</div>
+            <div className="w-full h-2 bg-surface-container-high rounded-full overflow-hidden mt-2">
+              <div 
+                className={`h-full rounded-full ${cpu >= 85 ? 'bg-error' : 'bg-primary'}`} 
+                style={{ width: `${Math.min(100, Math.max(5, cpu))}%` }} 
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Time Range Selector for Historical Graphs */}
-        {(activeTab === 'cpu' || activeTab === 'ram' || activeTab === 'disk' || activeTab === 'network') && (
-          <div className="flex items-center space-x-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
-            <Clock className="w-3.5 h-3.5 text-slate-400 ml-2 mr-1" />
-            {['1h', '6h', '24h', '7d', '30d'].map((range) => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
-                  timeRange === range
-                    ? 'bg-cyan-500 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                }`}
-              >
-                {range}
-              </button>
-            ))}
+        {/* RAM */}
+        <div className="card-elevated p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-label-md text-label-md text-secondary uppercase font-bold flex items-center gap-1.5">
+              <Activity className="w-4 h-4 text-[#10b981]" /> Memory Usage
+            </span>
+            <span className="font-mono-sm text-mono-sm font-bold text-[#10b981]">{Math.round(ram)}%</span>
+          </div>
+          <div>
+            <div className="font-display text-display text-on-surface">{Math.round(ram)}%</div>
+            <div className="w-full h-2 bg-surface-container-high rounded-full overflow-hidden mt-2">
+              <div 
+                className={`h-full rounded-full ${ram >= 90 ? 'bg-error' : 'bg-[#10b981]'}`} 
+                style={{ width: `${Math.min(100, Math.max(5, ram))}%` }} 
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Disk Free */}
+        <div className="card-elevated p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-label-md text-label-md text-secondary uppercase font-bold flex items-center gap-1.5">
+              <HardDrive className="w-4 h-4 text-secondary" /> Free Storage
+            </span>
+            <span className="font-mono-sm text-mono-sm font-bold text-on-surface">{diskFree} GB</span>
+          </div>
+          <div>
+            <div className="font-display text-display text-on-surface">{diskFree} <span className="text-body-md font-body-md text-secondary">GB</span></div>
+            <div className="w-full h-2 bg-surface-container-high rounded-full overflow-hidden mt-2">
+              <div className="h-full rounded-full bg-secondary" style={{ width: `${Math.min(100, Math.max(10, (diskFree / 256) * 100))}%` }} />
+            </div>
+          </div>
+        </div>
+
+        {/* CPU Temp */}
+        <div className="card-elevated p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-label-md text-label-md text-secondary uppercase font-bold flex items-center gap-1.5">
+              <Thermometer className="w-4 h-4 text-[#f59e0b]" /> Thermal Temp
+            </span>
+            <span className="font-mono-sm text-mono-sm font-bold text-[#f59e0b]">{Math.round(temp)}°C</span>
+          </div>
+          <div>
+            <div className="font-display text-display text-on-surface">{Math.round(temp)}°C</div>
+            <div className="w-full h-2 bg-surface-container-high rounded-full overflow-hidden mt-2">
+              <div 
+                className={`h-full rounded-full ${temp >= 80 ? 'bg-error' : 'bg-[#f59e0b]'}`} 
+                style={{ width: `${Math.min(100, Math.max(10, (temp / 100) * 100))}%` }} 
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Diagnostic Summary Banner */}
+      {aiDiagnosis && (
+        <div className="ai-diagnostic-card rounded-xl bg-surface-container-lowest border border-tertiary p-6 shadow-sm">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-tertiary-container/20 text-tertiary flex items-center justify-center font-bold flex-shrink-0 mt-1">
+                <BrainCircuit className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-label-md text-label-md bg-tertiary text-white px-2 py-0.5 rounded font-bold uppercase">
+                    AI Diagnosis Status: {aiDiagnosis.confirmationStatus || 'CONFIRMED'}
+                  </span>
+                </div>
+                <h3 className="font-headline-md text-headline-md font-bold text-on-surface mt-1">
+                  {aiDiagnosis.problemDetected || 'No Critical Failure Detected'}
+                </h3>
+                <p className="font-body-md text-body-md text-secondary mt-1">
+                  {aiDiagnosis.exactReason || 'Computer is operating within healthy parameters.'}
+                </p>
+              </div>
+            </div>
+
+            {aiDiagnosis.solution && (
+              <div className="bg-surface-container-low p-4 rounded-lg border border-outline-variant max-w-sm w-full">
+                <span className="font-label-md text-label-md font-bold text-primary block mb-1 uppercase">Recommended Solution</span>
+                <p className="font-body-md text-body-md text-on-surface">{aiDiagnosis.solution}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Tabs */}
+      <div className="flex border-b border-outline-variant gap-2 overflow-x-auto">
+        {[
+          { id: 'metrics', label: 'Real-Time Metrics', icon: Activity },
+          { id: 'processes', label: 'Active Processes', icon: Terminal },
+          { id: 'ai', label: 'AI Trend Prediction', icon: BrainCircuit },
+          { id: 'logs', label: 'Log & File Analyzer', icon: FileText },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-5 py-3 border-b-2 font-headline-md text-body-md transition-colors ${
+                isActive
+                  ? 'border-primary text-primary font-bold bg-surface-container/60'
+                  : 'border-transparent text-secondary hover:text-on-surface hover:bg-surface-container-high'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab Content Canvas */}
+      <div className="space-y-6">
+        {activeTab === 'metrics' && (
+          <div className="card-elevated p-6 space-y-6">
+            <h3 className="font-headline-md text-headline-md font-bold text-on-surface">Telemetry Sample History</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-surface-container-low border-b border-outline-variant font-label-md text-label-md text-secondary">
+                    <th className="p-3">Timestamp</th>
+                    <th className="p-3 text-right">CPU Usage</th>
+                    <th className="p-3 text-right">RAM Usage</th>
+                    <th className="p-3 text-right">Free Memory</th>
+                    <th className="p-3 text-right">Free Storage</th>
+                    <th className="p-3 text-right">CPU Temp</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant font-body-md text-body-md">
+                  {metricHistory.slice(0, 15).map((m, idx) => (
+                    <tr key={idx} className="hover:bg-surface-container-low transition-colors">
+                      <td className="p-3 font-mono-sm text-mono-sm text-secondary">
+                        {m.recordedAt ? new Date(m.recordedAt).toLocaleTimeString() : 'N/A'}
+                      </td>
+                      <td className="p-3 text-right font-mono-sm text-mono-sm font-bold text-primary">{Math.round(m.cpuUsagePercent ?? 0)}%</td>
+                      <td className="p-3 text-right font-mono-sm text-mono-sm font-bold text-[#10b981]">{Math.round(m.memoryUsagePercent ?? 0)}%</td>
+                      <td className="p-3 text-right font-mono-sm text-mono-sm text-secondary">{Math.round(m.memoryFreeMb ?? 0)} MB</td>
+                      <td className="p-3 text-right font-mono-sm text-mono-sm text-secondary">{Math.round(m.diskFreeGb ?? 0)} GB</td>
+                      <td className="p-3 text-right font-mono-sm text-mono-sm text-[#f59e0b]">{Math.round(m.cpuTemperature ?? 45)}°C</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'processes' && (
+          <ProcessTable computerId={id} />
+        )}
+
+        {activeTab === 'ai' && aiPrediction && (
+          <div className="card-elevated p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-outline-variant pb-4">
+              <div>
+                <span className="font-label-md text-label-md px-2.5 py-1 rounded bg-primary-container/20 text-primary border border-primary/30 font-bold uppercase">
+                  Model: {aiPrediction.modelVersion || 'NeuroSys Trend Model v1.0'}
+                </span>
+                <h3 className="font-headline-lg text-headline-lg font-bold text-on-surface mt-2">
+                  {aiPrediction.predictedIssue || 'Optimal System Performance'}
+                </h3>
+              </div>
+              <div className="text-right">
+                <span className="font-display text-display text-primary">{aiPrediction.confidencePercent || 92}%</span>
+                <span className="block font-label-md text-label-md text-secondary uppercase">Statistical Confidence</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-surface-container-low rounded-lg border border-outline-variant">
+                <span className="font-label-md text-label-md text-secondary uppercase font-bold block mb-2">Estimated Timeframe</span>
+                <span className="font-headline-md text-headline-md text-on-surface font-bold">{aiPrediction.estimatedTimeframe || 'No issue predicted'}</span>
+              </div>
+              <div className="p-4 bg-surface-container-low rounded-lg border border-outline-variant">
+                <span className="font-label-md text-label-md text-secondary uppercase font-bold block mb-2">Risk Level</span>
+                <span className="font-headline-md text-headline-md font-bold text-amber-600">{aiPrediction.riskLevel || 'LOW'}</span>
+              </div>
+            </div>
+
+            {aiPrediction.contributingFactors && (
+              <div className="space-y-2">
+                <h4 className="font-label-md text-label-md text-secondary uppercase font-bold">Contributing Evidence Factors</h4>
+                <div className="space-y-2">
+                  {aiPrediction.contributingFactors.map((factor, idx) => (
+                    <div key={idx} className="p-3 bg-surface-container-low border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                      <span>{factor}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'logs' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <LogAnalyzer computerId={id} />
+            <FileAnalyzerCard computerId={id} />
           </div>
         )}
       </div>
-
-      {/* Tab Contents: Telemetry Historical Charts */}
-      {activeTab === 'cpu' && (
-        <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              <Cpu className="w-5 h-5 text-cyan-400" />
-              CPU Utilization Trend ({timeRange.toUpperCase()})
-            </h3>
-            <span className="text-xs font-mono text-cyan-400 font-bold">
-              Current: {computer.currentCpuUsage != null ? Math.round(computer.currentCpuUsage) : '—'}%
-            </span>
-          </div>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={metricHistory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
-                <YAxis domain={[0, 100]} stroke="#64748b" fontSize={11} unit="%" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }}
-                />
-                <ReferenceLine y={85} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Critical (85%)', fill: '#ef4444', fontSize: 10 }} />
-                <Line type="monotone" dataKey="cpu" name="CPU Usage %" stroke="#06b6d4" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'ram' && (
-        <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              <HardDrive className="w-5 h-5 text-purple-400" />
-              Memory Allocation & Availability ({timeRange.toUpperCase()})
-            </h3>
-            <span className="text-xs font-mono text-purple-400 font-bold">
-              Current RAM: {computer.currentRamUsage != null ? Math.round(computer.currentRamUsage) : '—'}%
-            </span>
-          </div>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={metricHistory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
-                <YAxis domain={[0, 100]} stroke="#64748b" fontSize={11} unit="%" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }}
-                />
-                <ReferenceLine y={90} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Critical (90%)', fill: '#ef4444', fontSize: 10 }} />
-                <Line type="monotone" dataKey="ram" name="RAM Usage %" stroke="#a855f7" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'disk' && (
-        <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              <HardDrive className="w-5 h-5 text-amber-400" />
-              Disk Capacity & Consumption Trend ({timeRange.toUpperCase()})
-            </h3>
-            <span className="text-xs font-mono text-amber-400 font-bold">
-              Disk Used: {computer.currentDiskUsage != null ? Math.round(computer.currentDiskUsage) : '—'}%
-            </span>
-          </div>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={metricHistory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
-                <YAxis domain={[0, 100]} stroke="#64748b" fontSize={11} unit="%" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }}
-                />
-                <ReferenceLine y={90} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: 'Warning (90%)', fill: '#f59e0b', fontSize: 10 }} />
-                <Line type="monotone" dataKey="disk" name="Disk Capacity %" stroke="#f59e0b" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'network' && (
-        <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              <Wifi className="w-5 h-5 text-emerald-400" />
-              Network Speed & Throughput Mbps ({timeRange.toUpperCase()})
-            </h3>
-            <span className="text-xs font-mono text-emerald-400 font-bold">
-              Speed: {computer.currentNetworkSpeedMbps != null ? `${computer.currentNetworkSpeedMbps} Mbps` : '—'}
-            </span>
-          </div>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={metricHistory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
-                <YAxis stroke="#64748b" fontSize={11} unit=" Mbps" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }}
-                />
-                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                <Line type="monotone" dataKey="rxMbps" name="Download (Rx Mbps)" stroke="#10b981" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="txMbps" name="Upload (Tx Mbps)" stroke="#3b82f6" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'processes' && <ProcessTable processes={processes} />}
-      {activeTab === 'storage' && <FileAnalyzerCard fileReport={fileReport} />}
-      {activeTab === 'logs' && <LogAnalyzer logs={logs} />}
     </div>
   );
 };

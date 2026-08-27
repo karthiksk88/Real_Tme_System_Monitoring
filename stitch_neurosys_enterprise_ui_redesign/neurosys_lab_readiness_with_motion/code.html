@@ -1,0 +1,509 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Lab Readiness - NeuroSys</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "error-container": "#ffdad6",
+                      "on-tertiary-container": "#ffd2be",
+                      "surface-variant": "#e4e1ee",
+                      "on-background": "#1b1b24",
+                      "surface": "#fcf8ff",
+                      "on-error": "#ffffff",
+                      "secondary-container": "#d0e1fb",
+                      "primary-fixed": "#e2dfff",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary-fixed-variant": "#7b2f00",
+                      "background": "#fcf8ff",
+                      "secondary-fixed": "#d3e4fe",
+                      "primary": "#3525cd",
+                      "surface-tint": "#4d44e3",
+                      "surface-bright": "#fcf8ff",
+                      "on-surface-variant": "#464555",
+                      "on-secondary-container": "#54647a",
+                      "primary-container": "#4f46e5",
+                      "inverse-surface": "#302f39",
+                      "surface-container-low": "#f5f2ff",
+                      "outline-variant": "#c7c4d8",
+                      "surface-container-high": "#eae6f4",
+                      "primary-fixed-dim": "#c3c0ff",
+                      "error": "#ba1a1a",
+                      "inverse-on-surface": "#f3effc",
+                      "tertiary-fixed-dim": "#ffb695",
+                      "on-primary-container": "#dad7ff",
+                      "surface-dim": "#dcd8e5",
+                      "on-secondary-fixed": "#0b1c30",
+                      "on-secondary-fixed-variant": "#38485d",
+                      "on-primary-fixed-variant": "#3323cc",
+                      "inverse-primary": "#c3c0ff",
+                      "surface-container": "#f0ecf9",
+                      "on-surface": "#1b1b24",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "tertiary-fixed": "#ffdbcc",
+                      "on-primary": "#ffffff",
+                      "surface-container-highest": "#e4e1ee",
+                      "secondary-fixed-dim": "#b7c8e1",
+                      "secondary": "#505f76",
+                      "tertiary": "#7e3000",
+                      "outline": "#777587",
+                      "tertiary-container": "#a44100",
+                      "on-error-container": "#93000a",
+                      "on-tertiary-fixed": "#351000",
+                      "on-primary-fixed": "#0f0069"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "gutter": "16px",
+                      "sidebar-collapsed": "72px",
+                      "container-padding": "24px",
+                      "unit": "4px",
+                      "sidebar-width": "260px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "label-md": [
+                              "Geist"
+                      ],
+                      "headline-md": [
+                              "Geist"
+                      ],
+                      "mono-sm": [
+                              "Geist"
+                      ],
+                      "headline-lg": [
+                              "Geist"
+                      ],
+                      "display": [
+                              "Geist"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-md": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "mono-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg": [
+                              "28px",
+                              {
+                                      "lineHeight": "36px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display": [
+                              "36px",
+                              {
+                                      "lineHeight": "44px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              },
+              keyframes: {
+                shimmer: {
+                  '0%': { transform: 'translateX(-100%)' },
+                  '100%': { transform: 'translateX(100%)' }
+                },
+                dash: {
+                  '0%': { strokeDashoffset: '351.8' },
+                  '100%': { strokeDashoffset: '35.18' }
+                },
+                'slide-in-right': {
+                  '0%': { transform: 'translateX(100%)', opacity: '0' },
+                  '100%': { transform: 'translateX(0)', opacity: '1' }
+                },
+                'spin-slow': {
+                  '0%': { transform: 'rotate(0deg)' },
+                  '100%': { transform: 'rotate(360deg)' }
+                },
+                'soft-pulse': {
+                  '0%, 100%': { opacity: '1' },
+                  '50%': { opacity: '0.6' }
+                }
+              },
+              animation: {
+                shimmer: 'shimmer 2s infinite linear',
+                'gauge-fill': 'dash 1.5s ease-out forwards',
+                'slide-in-1': 'slide-in-right 0.4s ease-out 0.1s forwards',
+                'slide-in-2': 'slide-in-right 0.4s ease-out 0.2s forwards',
+                'slide-in-3': 'slide-in-right 0.4s ease-out 0.3s forwards',
+                'slide-in-4': 'slide-in-right 0.4s ease-out 0.4s forwards',
+                'spin-slow': 'spin-slow 2s linear infinite',
+                'soft-pulse': 'soft-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1;
+        }
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.4); }
+            70% { box-shadow: 0 0 0 4px rgba(186, 26, 26, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(186, 26, 26, 0); }
+        }
+        select:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--tw-colors-primary-fixed), 0 0 0 1px var(--tw-colors-primary);
+        }
+        .shimmer-wrapper {
+            position: relative;
+            overflow: hidden;
+            background-color: var(--tw-colors-surface-container);
+            border-radius: 0.25rem;
+        }
+        .shimmer-wrapper::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            transform: translateX(-100%);
+            background-image: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0) 0,
+                rgba(255, 255, 255, 0.2) 20%,
+                rgba(255, 255, 255, 0.5) 60%,
+                rgba(255, 255, 255, 0)
+            );
+            animation: shimmer 2s infinite;
+        }
+        /* Reveal animation setup for score */
+        .score-reveal {
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in forwards 1.5s; /* Delays until gauge fills mostly */
+        }
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md antialiased min-h-screen flex">
+<!-- NavigationDrawer (Shared Component) -->
+<aside class="w-sidebar h-screen fixed left-0 top-0 border-r border-outline-variant bg-surface flex flex-col py-gutter px-4 z-50">
+<div class="mb-8 px-4">
+<span class="font-display text-display text-primary tracking-tight">NeuroSys</span>
+</div>
+<nav class="flex flex-col gap-2 font-label-md text-label-md">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-full" href="#">
+<span class="material-symbols-outlined">monitor</span>
+                Computers
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-full" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+                Software
+            </a>
+<!-- Active Tab -->
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-full opacity-80 scale-[0.98] transition-transform" href="#">
+<span class="material-symbols-outlined icon-fill">fact_check</span>
+                Lab Readiness
+            </a>
+</nav>
+</aside>
+<!-- Main Canvas -->
+<div class="flex-1 flex flex-col min-h-screen ml-sidebar bg-background">
+<!-- TopAppBar (Shared Component) -->
+<header class="bg-surface/80 backdrop-blur-md sticky top-0 z-40 border-b border-outline-variant flex justify-between items-center px-container-padding h-16 w-full">
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-primary font-bold">Lab Overview</h1>
+</div>
+<div>
+<button class="p-2 rounded-full text-on-surface-variant hover:bg-surface-container transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+</div>
+</header>
+<main class="flex-1 p-container-padding flex flex-col gap-6">
+<!-- Page Header & Description -->
+<div class="flex flex-col gap-2">
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Lab Readiness</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">
+                    Check whether computers are ready for practical sessions. Select a lab and a readiness profile to view compliance metrics.
+                </p>
+</div>
+<!-- Selectors -->
+<div class="flex flex-col sm:flex-row gap-4 items-end">
+<div class="flex flex-col gap-2 w-full sm:w-64">
+<label class="font-label-md text-label-md text-on-surface-variant">Select Lab</label>
+<div class="relative">
+<select class="w-full h-[40px] pl-3 pr-10 appearance-none bg-surface-container-lowest border border-outline-variant rounded text-body-md text-on-surface transition-shadow">
+<option>Lab A</option>
+<option>Lab B</option>
+<option>Lab C</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-2 text-on-surface-variant pointer-events-none">arrow_drop_down</span>
+</div>
+</div>
+<div class="flex flex-col gap-2 w-full sm:w-64">
+<label class="font-label-md text-label-md text-on-surface-variant">Select Readiness Profile</label>
+<div class="relative">
+<select class="w-full h-[40px] pl-3 pr-10 appearance-none bg-surface-container-lowest border border-outline-variant rounded text-body-md text-on-surface transition-shadow">
+<option>Java Practical</option>
+<option>Python ML Basics</option>
+<option>Web Dev Fundamentals</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-2 text-on-surface-variant pointer-events-none">arrow_drop_down</span>
+</div>
+</div>
+<button class="group h-[40px] px-6 bg-primary text-on-primary font-label-md text-label-md rounded hover:bg-surface-tint transition-colors flex items-center gap-2 ml-auto">
+<span class="material-symbols-outlined text-[18px] group-active:animate-spin-slow">refresh</span>
+                    Scan Now
+                </button>
+</div>
+<!-- Bento Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Readiness Score Card -->
+<div class="lg:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary-fixed-dim transition-colors group">
+<div class="flex justify-between items-start">
+<h3 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2">
+    Readiness Score
+    <!-- Added shimmer wrapper for checking status effect -->
+<div class="shimmer-wrapper w-20 h-5 inline-block opacity-0 lg:opacity-100 hidden"></div>
+</h3>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">speed</span>
+</div>
+<div class="flex flex-col items-center justify-center py-6">
+<div class="relative flex items-center justify-center w-32 h-32">
+<!-- Faux Donut Chart using SVG -->
+<svg class="transform -rotate-90 w-32 h-32">
+<circle cx="64" cy="64" fill="none" r="56" stroke="var(--tw-colors-surface-container)" stroke-width="12"></circle>
+<circle class="animate-gauge-fill" cx="64" cy="64" fill="none" r="56" stroke="var(--tw-colors-primary)" stroke-dasharray="351.8" stroke-dashoffset="351.8" stroke-width="12"></circle>
+</svg>
+<div class="absolute flex flex-col items-center score-reveal">
+<span class="font-display text-display text-on-surface">90%</span>
+</div>
+</div>
+<p class="font-label-md text-label-md text-on-surface-variant mt-4 text-center score-reveal">
+                            36 of 40 computers meet the profile criteria.
+                        </p>
+</div>
+</div>
+<!-- Lab Summary Stats -->
+<div class="lg:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col hover:border-primary-fixed-dim transition-colors">
+<div class="flex justify-between items-start mb-6">
+<h3 class="font-headline-md text-headline-md text-on-surface">Lab Summary</h3>
+<span class="material-symbols-outlined text-outline">analytics</span>
+</div>
+<div class="flex flex-col gap-4">
+<div class="flex items-center justify-between p-3 bg-surface-container rounded-lg">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-outline animate-soft-pulse"></div>
+<span class="font-body-md text-body-md text-on-surface">Total Computers</span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">40</span>
+</div>
+<div class="flex items-center justify-between p-3 border border-outline-variant rounded-lg">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-[#16a34a] animate-soft-pulse"></div> <!-- Using explicit green as theme lacks semantic success -->
+<span class="font-body-md text-body-md text-on-surface">Ready</span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">36</span>
+</div>
+<div class="flex items-center justify-between p-3 border border-outline-variant rounded-lg">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-tertiary animate-soft-pulse"></div>
+<span class="font-body-md text-body-md text-on-surface">Needs Attention</span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">3</span>
+</div>
+<div class="flex items-center justify-between p-3 border border-outline-variant rounded-lg">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-error pulse-dot animate-soft-pulse"></div>
+<span class="font-body-md text-body-md text-on-surface">Not Ready</span>
+</div>
+<span class="font-headline-md text-headline-md text-error">1</span>
+</div>
+</div>
+</div>
+<!-- Profile Details -->
+<div class="lg:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col hover:border-primary-fixed-dim transition-colors overflow-hidden">
+<div class="flex justify-between items-start mb-6">
+<h3 class="font-headline-md text-headline-md text-on-surface">Profile Requirements</h3>
+<span class="material-symbols-outlined text-outline">list_alt</span>
+</div>
+<div class="bg-surface-container-low rounded-lg p-1 border border-outline-variant flex-1 overflow-y-auto">
+<ul class="flex flex-col">
+<li class="flex items-center gap-3 p-3 border-b border-outline-variant last:border-0 hover:bg-surface-container transition-colors opacity-0 animate-slide-in-1">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">Java 17+</span>
+<span class="font-mono-sm text-mono-sm text-on-surface-variant">Runtime Environment</span>
+</div>
+</li>
+<li class="flex items-center gap-3 p-3 border-b border-outline-variant last:border-0 hover:bg-surface-container transition-colors opacity-0 animate-slide-in-2">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">VS Code</span>
+<span class="font-mono-sm text-mono-sm text-on-surface-variant">IDE v1.85+</span>
+</div>
+</li>
+<li class="flex items-center gap-3 p-3 border-b border-outline-variant last:border-0 hover:bg-surface-container transition-colors opacity-0 animate-slide-in-3">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">Git</span>
+<span class="font-mono-sm text-mono-sm text-on-surface-variant">Version Control System</span>
+</div>
+</li>
+<li class="flex items-center gap-3 p-3 border-b border-outline-variant last:border-0 hover:bg-surface-container transition-colors opacity-0 animate-slide-in-4">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">10GB Disk Space</span>
+<span class="font-mono-sm text-mono-sm text-on-surface-variant">Available Storage Minimum</span>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- Detailed Action List -->
+<div class="mt-4 flex flex-col gap-4">
+<h3 class="font-headline-md text-headline-md text-on-surface">Attention Required</h3>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low border-b border-outline-variant">
+<tr>
+<th class="py-3 px-4 font-label-md text-label-md text-on-surface-variant font-medium">Computer ID</th>
+<th class="py-3 px-4 font-label-md text-label-md text-on-surface-variant font-medium">Status</th>
+<th class="py-3 px-4 font-label-md text-label-md text-on-surface-variant font-medium">Missing Requirements</th>
+<th class="py-3 px-4 font-label-md text-label-md text-on-surface-variant font-medium text-right">Action</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-on-surface">
+<tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container-low transition-colors">
+<td class="py-3 px-4 font-mono-sm text-mono-sm">PC-14</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-1 bg-error-container text-on-error-container rounded-sm font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-soft-pulse"></span>
+                                        Not Ready
+                                    </span>
+</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-1 bg-surface-variant text-on-surface-variant rounded font-mono-sm text-mono-sm">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+                                        Missing Git
+                                    </span>
+</td>
+<td class="py-3 px-4 text-right">
+<button class="font-label-md text-label-md text-primary hover:text-primary-container transition-colors">
+                                        Deploy Package
+                                    </button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container-low transition-colors">
+<td class="py-3 px-4 font-mono-sm text-mono-sm">PC-22</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-sm font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-soft-pulse"></span>
+                                        Needs Attention
+                                    </span>
+</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-1 bg-surface-variant text-on-surface-variant rounded font-mono-sm text-mono-sm">
+<span class="material-symbols-outlined text-[14px]">storage</span>
+                                        Low Disk Space (4GB free)
+                                    </span>
+</td>
+<td class="py-3 px-4 text-right">
+<button class="font-label-md text-label-md text-primary hover:text-primary-container transition-colors">
+                                        Run Cleanup Task
+                                    </button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container-low transition-colors">
+<td class="py-3 px-4 font-mono-sm text-mono-sm">PC-39</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-sm font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-soft-pulse"></span>
+                                        Needs Attention
+                                    </span>
+</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-1 bg-surface-variant text-on-surface-variant rounded font-mono-sm text-mono-sm">
+<span class="material-symbols-outlined text-[14px]">update</span>
+                                        VS Code Outdated (v1.82)
+                                    </span>
+</td>
+<td class="py-3 px-4 text-right">
+<button class="font-label-md text-label-md text-primary hover:text-primary-container transition-colors">
+                                        Update Software
+                                    </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+</div>
+</body></html>
