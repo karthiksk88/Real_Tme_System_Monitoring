@@ -7,20 +7,13 @@ import {
   Activity, 
   HardDrive, 
   Thermometer, 
-  Power, 
-  RotateCw, 
-  Lock, 
   FileText, 
   BrainCircuit, 
-  Layers, 
-  Clock, 
-  CheckCircle2, 
-  AlertTriangle,
+  Terminal, 
   ArrowLeft,
   RefreshCw,
-  Terminal,
-  ShieldCheck,
-  Package
+  CheckCircle2,
+  ShieldCheck
 } from 'lucide-react';
 import ProcessTable from '../components/ProcessTable';
 import RemotePowerManagement from '../components/RemotePowerManagement';
@@ -34,8 +27,9 @@ const ComputerDetails = () => {
   const [metricHistory, setMetricHistory] = useState([]);
   const [aiDiagnosis, setAiDiagnosis] = useState(null);
   const [aiPrediction, setAiPrediction] = useState(null);
-  const [activeTab, setActiveTab] = useState('metrics'); // 'metrics' | 'processes' | 'ai' | 'logs' | 'software'
+  const [activeTab, setActiveTab] = useState('metrics'); // 'metrics' | 'processes' | 'ai' | 'logs'
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchComputerDetails();
@@ -44,6 +38,7 @@ const ComputerDetails = () => {
   }, [id]);
 
   const fetchComputerDetails = async () => {
+    setIsRefreshing(true);
     try {
       const [compRes, histRes, diagRes, predRes] = await Promise.all([
         metricsService.getComputerById(id).catch(() => null),
@@ -68,6 +63,7 @@ const ComputerDetails = () => {
       console.error('Error loading computer details', e);
     } finally {
       setLoading(false);
+      setTimeout(() => setIsRefreshing(false), 400);
     }
   };
 
@@ -93,7 +89,7 @@ const ComputerDetails = () => {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/computers')}
-            className="p-2 rounded-lg border border-outline-variant text-secondary hover:bg-surface-container transition-colors"
+            className="p-2 rounded-lg border border-outline-variant text-secondary hover:bg-surface-container transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -114,17 +110,25 @@ const ComputerDetails = () => {
           </div>
         </div>
 
-        {/* Quick Actions & Power Control */}
+        {/* Quick Actions & Refresh Button */}
         <div className="flex items-center gap-2">
-          {computer && (
-            <RemotePowerManagement 
-              computerId={computer.id} 
-              hostname={computer.hostname}
-              status={computer.status} 
-            />
-          )}
+          <button
+            onClick={fetchComputerDetails}
+            title="Refresh Details"
+            className="p-2 rounded-lg border border-outline-variant text-secondary hover:bg-surface-container hover:text-primary transition-colors"
+          >
+            <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
+          </button>
         </div>
       </div>
+
+      {/* Remote Power Management Section */}
+      {computer && (
+        <RemotePowerManagement 
+          computer={computer} 
+          onStatusUpdate={fetchComputerDetails} 
+        />
+      )}
 
       {/* Hardware Telemetry Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in-up">
@@ -249,7 +253,7 @@ const ComputerDetails = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-3 border-b-2 font-headline-md text-body-md transition-colors ${
+              className={`flex items-center gap-2 px-5 py-3 border-b-2 font-headline-md text-body-md transition-colors cursor-pointer ${
                 isActive
                   ? 'border-primary text-primary font-bold bg-surface-container/60'
                   : 'border-transparent text-secondary hover:text-on-surface hover:bg-surface-container-high'
