@@ -111,9 +111,9 @@ public class SystemMetricsServiceImpl implements SystemMetricsService {
         double disk = request.getDiskUsagePercent() != null ? request.getDiskUsagePercent() : 0.0;
 
         ComputerStatus newStatus;
-        if (cpu >= 90.0 || ram >= 95.0 || disk >= 95.0) {
+        if (cpu >= 99.0 || disk >= 99.0) {
             newStatus = ComputerStatus.CRITICAL;
-        } else if (cpu >= 75.0 || ram >= 80.0 || disk >= 85.0) {
+        } else if (cpu >= 90.0 || ram >= 98.0) {
             newStatus = ComputerStatus.WARNING;
         } else {
             newStatus = ComputerStatus.ONLINE;
