@@ -12,7 +12,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 5000);
+    const interval = setInterval(fetchDashboardData, 4000);
     return () => clearInterval(interval);
   }, []);
 
@@ -46,13 +46,13 @@ const Dashboard = () => {
     }
   };
 
-  // Real Database Counts
+  // Real Database Counts - Active endpoints include ONLINE & WARNING
   const totalAssets = computers.length;
-  const healthyCount = computers.filter(c => c.status === 'ONLINE').length;
+  const activeCount = computers.filter(c => c.status === 'ONLINE' || c.status === 'WARNING').length;
   const criticalCount = computers.filter(c => c.status === 'CRITICAL' || c.status === 'OFFLINE').length;
-  const warningCount = computers.filter(c => c.status === 'WARNING' || c.status === 'PENDING').length;
+  const warningCount = computers.filter(c => c.status === 'WARNING').length;
 
-  const healthyPercent = totalAssets > 0 ? Math.round((healthyCount / totalAssets) * 100) : 0;
+  const healthyPercent = totalAssets > 0 ? Math.round((activeCount / totalAssets) * 100) : 0;
   const warningPercent = totalAssets > 0 ? Math.round((warningCount / totalAssets) * 100) : 0;
   const criticalPercent = totalAssets > 0 ? Math.round((criticalCount / totalAssets) * 100) : 0;
 
@@ -101,18 +101,18 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Healthy */}
+        {/* Active Endpoints */}
         <div 
-          onClick={() => navigate('/computers?status=ONLINE')}
+          onClick={() => navigate('/computers')}
           className="card-elevated p-4 flex flex-col justify-between border-l-4 border-l-[#10b981] hover:scale-[1.02] hover:shadow-lg transition-all duration-300 cursor-pointer"
         >
           <div className="flex items-center justify-between mb-4">
             <span className="material-symbols-outlined text-[#10b981]">check_circle</span>
-            <span className="text-label-md font-label-md text-secondary">Healthy</span>
+            <span className="text-label-md font-label-md text-secondary">Active Endpoints</span>
           </div>
           <div>
-            <div className="text-display font-display text-on-surface">{healthyCount}</div>
-            <div className="text-body-md font-body-md text-secondary mt-1">Online &amp; Ready</div>
+            <div className="text-display font-display text-on-surface">{activeCount}</div>
+            <div className="text-body-md font-body-md text-secondary mt-1">Online &amp; Streaming</div>
           </div>
         </div>
 
@@ -142,7 +142,7 @@ const Dashboard = () => {
           </div>
           <div>
             <div className="text-display font-display text-on-surface">{warningCount}</div>
-            <div className="text-body-md font-body-md text-secondary mt-1">Needs Attention</div>
+            <div className="text-body-md font-body-md text-secondary mt-1">High Load / Alerts</div>
           </div>
         </div>
       </section>
@@ -170,7 +170,7 @@ const Dashboard = () => {
               <div className="flex gap-6 mt-4 pt-4 border-t border-outline-variant">
                 <div className="flex items-center gap-2">
                   <span className="status-dot status-healthy animate-pulse-soft"></span>
-                  <span className="text-body-md font-body-md text-secondary">{healthyCount} Healthy</span>
+                  <span className="text-body-md font-body-md text-secondary">{activeCount} Active</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="status-dot status-warning"></span>
@@ -253,17 +253,17 @@ const Dashboard = () => {
                 <tbody className="text-body-md font-body-md text-on-background divide-y divide-outline-variant/50">
                   {computers.length > 0 ? (
                     computers.map((comp) => {
-                      const isOnline = comp.status === 'ONLINE' || comp.status === 'WARNING' || comp.status === 'CRITICAL';
                       const cpu = Math.round(comp.currentCpuUsage ?? comp.lastRecordedCpuUsage ?? 0);
                       const ram = Math.round(comp.currentRamUsage ?? comp.lastRecordedRamUsage ?? 0);
                       const disk = Math.round(comp.currentDiskUsage ?? comp.lastRecordedDiskUsage ?? 0);
+                      const isLaptop = comp.hostname === 'LAPTOP-PALBUQS2';
 
                       return (
-                        <tr key={comp.id} className="hover:bg-surface-container-lowest transition-colors">
+                        <tr key={comp.id} className={`hover:bg-surface-container-lowest transition-colors ${isLaptop ? 'bg-primary-container/10 border-l-4 border-l-primary' : ''}`}>
                           <td className="py-2.5 px-3 whitespace-nowrap">
                             <div className="flex items-center gap-2">
-                              <div className={`w-2.5 h-2.5 rounded-full ${comp.status === 'ONLINE' ? 'bg-primary status-dot-active' : comp.status === 'WARNING' ? 'bg-[#f59e0b]' : 'bg-error'}`}></div>
-                              <span className={`text-mono-sm font-mono-sm font-bold ${comp.status === 'ONLINE' ? 'text-primary' : comp.status === 'WARNING' ? 'text-[#f59e0b]' : 'text-error'}`}>
+                              <div className={`w-2.5 h-2.5 rounded-full ${comp.status === 'ONLINE' ? 'bg-[#10b981] status-dot-active' : comp.status === 'WARNING' ? 'bg-[#f59e0b] status-dot-active' : 'bg-error'}`}></div>
+                              <span className={`text-mono-sm font-mono-sm font-bold ${comp.status === 'ONLINE' ? 'text-[#10b981]' : comp.status === 'WARNING' ? 'text-[#f59e0b]' : 'text-error'}`}>
                                 {comp.status}
                               </span>
                             </div>
@@ -272,9 +272,9 @@ const Dashboard = () => {
                             onClick={() => navigate(`/computers/${comp.id}`)}
                             className="py-2.5 px-3 font-bold text-primary cursor-pointer hover:underline"
                           >
-                            {comp.hostname}
+                            {comp.hostname} {isLaptop ? '(Your Computer)' : ''}
                           </td>
-                          <td className="py-2.5 px-3 text-secondary font-medium">{comp.labName || 'General Lab'}</td>
+                          <td className="py-2.5 px-3 text-secondary font-medium">{comp.labName || 'Lab Alpha'}</td>
                           <td className="py-2.5 px-3 font-mono-sm font-bold text-primary">{cpu}%</td>
                           <td className="py-2.5 px-3 font-mono-sm font-bold text-[#10b981]">{ram}%</td>
                           <td className="py-2.5 px-3 font-mono-sm font-bold text-secondary">{disk}%</td>

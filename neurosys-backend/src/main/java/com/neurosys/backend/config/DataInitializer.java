@@ -47,20 +47,20 @@ public class DataInitializer implements CommandLineRunner {
 
         // 2. Seed Initial Active Computer Endpoints if database is empty
         if (computerRepository.count() == 0) {
-            log.info("Seeding initial lab computer endpoints into MySQL database...");
+            log.info("Seeding initial lab computer endpoints into database...");
 
             List<Computer> sampleComputers = Arrays.asList(
                 Computer.builder()
-                    .agentId("AGENT-PALBUQS2")
+                    .agentId("AGENT-9EA49A31")
                     .hostname("LAPTOP-PALBUQS2")
-                    .computerName("Admin Primary Workstation")
-                    .ipAddress("192.168.1.100")
-                    .macAddress("D8-BB-C1-8E-4A-01")
+                    .computerName("Admin Primary Workstation (Your Laptop)")
+                    .ipAddress("10.33.199.161")
+                    .macAddress("FA:54:F6:B4:98:23")
                     .osName("Windows 11 Pro 64-bit")
                     .osVersion("10.0.22631")
                     .labName("Lab Alpha")
-                    .cpuModel("11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz")
-                    .totalRamMb(16384.0)
+                    .cpuModel("11th Gen Intel(R) Core(TM) i5-11260H @ 2.60GHz")
+                    .totalRamMb(8192.0)
                     .agentVersion("1.0.0")
                     .status(ComputerStatus.ONLINE)
                     .lastSeenAt(Instant.now())
@@ -134,19 +134,19 @@ public class DataInitializer implements CommandLineRunner {
             List<Computer> saved = computerRepository.saveAll(sampleComputers);
             log.info("Saved {} computer endpoints to database.", saved.size());
 
-            // 3. Seed initial telemetry metrics for saved computers
+            // Seed initial telemetry metrics for saved computers
             for (Computer c : saved) {
                 SystemMetric metric = SystemMetric.builder()
                         .computer(c)
-                        .cpuUsagePercent(18.5)
-                        .memoryUsagePercent(42.0)
-                        .memoryUsedMb(6880.0)
-                        .memoryFreeMb(9504.0)
-                        .diskUsagePercent(35.0)
-                        .diskUsedGb(180.0)
-                        .diskFreeGb(332.0)
-                        .cpuTemperature(45.0)
-                        .activeProcessCount(142)
+                        .cpuUsagePercent(22.5)
+                        .memoryUsagePercent(58.0)
+                        .memoryUsedMb(4750.0)
+                        .memoryFreeMb(3442.0)
+                        .diskUsagePercent(45.0)
+                        .diskUsedGb(230.0)
+                        .diskFreeGb(280.0)
+                        .cpuTemperature(48.0)
+                        .activeProcessCount(165)
                         .recordedAt(Instant.now())
                         .build();
                 systemMetricRepository.save(metric);
