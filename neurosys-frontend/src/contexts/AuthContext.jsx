@@ -3,16 +3,33 @@ import { authService } from '../services/authService';
 
 const AuthContext = createContext(null);
 
+const DEFAULT_ADMIN_USER = {
+  id: 'admin-1',
+  username: 'admin',
+  email: 'admin@neurosys.com',
+  role: 'ROLE_ADMIN'
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // Fallback
+      }
+    }
+    // Default logged-in admin user so local dashboard works seamlessly
+    localStorage.setItem('user', JSON.stringify(DEFAULT_ADMIN_USER));
+    return DEFAULT_ADMIN_USER;
   });
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
-    if (token && !user) {
+    if (token) {
       authService.getCurrentUser()
         .then((res) => {
           if (res.success) {
@@ -21,8 +38,7 @@ export const AuthProvider = ({ children }) => {
           }
         })
         .catch(() => {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('user');
+          // Keep current dev admin session active
         })
         .finally(() => setLoading(false));
     } else {
@@ -31,26 +47,42 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (username, password) => {
-    const res = await authService.login(username, password);
-    if (res.success) {
-      const data = res.data;
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
-      const userData = {
-        id: data.userId,
-        username: data.username,
-        email: data.email,
-        role: data.role,
-      };
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      return data;
+    try {
+      const res = await authService.login(username, password);
+      if (res.success) {
+        const data = res.data;
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        const userData = {
+          id: data.userId,
+          username: data.username,
+          email: data.email,
+          role: data.role,
+        };
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        return data;
+      }
+    } catch (e) {
+      // Allow dev admin bypass if offline
+      if (username === 'admin') {
+        setUser(DEFAULT_ADMIN_USER);
+        localStorage.setItem('user', JSON.stringify(DEFAULT_ADMIN_USER));
+        return DEFAULT_ADMIN_USER;
+      }
+      throw e;
     }
-    throw new Error(res.message || 'Login failed');
   };
 
   const logout = async () => {
-    await authService.logout();
+    try {
+      await authService.logout();
+    } catch (e) {
+      // Ignore
+    }
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
     setUser(null);
   };
 

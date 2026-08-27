@@ -33,11 +33,11 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         // 1. Seed Default Administrator User
         if (userRepository.findByUsername("admin").isEmpty()) {
-            log.info("Seeding default Administrator user: admin / Admin@123");
+            log.info("Seeding default Administrator user: admin / admin123");
             User admin = User.builder()
                     .username("admin")
                     .email("admin@neurosys.com")
-                    .passwordHash(passwordEncoder.encode("Admin@123"))
+                    .passwordHash(passwordEncoder.encode("admin123"))
                     .role(Role.ROLE_ADMIN)
                     .active(true)
                     .build();
