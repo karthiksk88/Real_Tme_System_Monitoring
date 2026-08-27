@@ -221,6 +221,85 @@ const Dashboard = () => {
               )}
             </div>
           </section>
+
+          {/* Live Computers Table Card Directly on Dashboard */}
+          <section className="card-elevated p-6 animate-fade-in-up">
+            <div className="flex items-center justify-between mb-4 border-b border-outline-variant pb-3">
+              <h3 className="text-headline-md font-headline-md text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">desktop_windows</span>
+                Live Connected Computers ({computers.length})
+              </h3>
+              <button 
+                onClick={() => navigate('/computers')}
+                className="text-label-md font-label-md text-primary hover:underline font-bold cursor-pointer"
+              >
+                View Full Fleet Page →
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[650px]">
+                <thead>
+                  <tr className="bg-surface-container-low border-b border-outline-variant text-label-md font-label-md text-secondary">
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3">Computer Name</th>
+                    <th className="py-2.5 px-3">Lab</th>
+                    <th className="py-2.5 px-3">CPU %</th>
+                    <th className="py-2.5 px-3">RAM %</th>
+                    <th className="py-2.5 px-3">Storage %</th>
+                    <th className="py-2.5 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="text-body-md font-body-md text-on-background divide-y divide-outline-variant/50">
+                  {computers.length > 0 ? (
+                    computers.map((comp) => {
+                      const isOnline = comp.status === 'ONLINE' || comp.status === 'WARNING' || comp.status === 'CRITICAL';
+                      const cpu = Math.round(comp.currentCpuUsage ?? comp.lastRecordedCpuUsage ?? 0);
+                      const ram = Math.round(comp.currentRamUsage ?? comp.lastRecordedRamUsage ?? 0);
+                      const disk = Math.round(comp.currentDiskUsage ?? comp.lastRecordedDiskUsage ?? 0);
+
+                      return (
+                        <tr key={comp.id} className="hover:bg-surface-container-lowest transition-colors">
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2.5 h-2.5 rounded-full ${comp.status === 'ONLINE' ? 'bg-primary status-dot-active' : comp.status === 'WARNING' ? 'bg-[#f59e0b]' : 'bg-error'}`}></div>
+                              <span className={`text-mono-sm font-mono-sm font-bold ${comp.status === 'ONLINE' ? 'text-primary' : comp.status === 'WARNING' ? 'text-[#f59e0b]' : 'text-error'}`}>
+                                {comp.status}
+                              </span>
+                            </div>
+                          </td>
+                          <td 
+                            onClick={() => navigate(`/computers/${comp.id}`)}
+                            className="py-2.5 px-3 font-bold text-primary cursor-pointer hover:underline"
+                          >
+                            {comp.hostname}
+                          </td>
+                          <td className="py-2.5 px-3 text-secondary font-medium">{comp.labName || 'General Lab'}</td>
+                          <td className="py-2.5 px-3 font-mono-sm font-bold text-primary">{cpu}%</td>
+                          <td className="py-2.5 px-3 font-mono-sm font-bold text-[#10b981]">{ram}%</td>
+                          <td className="py-2.5 px-3 font-mono-sm font-bold text-secondary">{disk}%</td>
+                          <td className="py-2.5 px-3 text-right">
+                            <button 
+                              onClick={() => navigate(`/computers/${comp.id}`)}
+                              className="text-label-md font-label-md px-3 py-1 rounded border border-outline-variant hover:border-primary hover:text-primary transition-colors bg-surface cursor-pointer font-bold"
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="7" className="py-8 text-center text-secondary text-body-md">
+                        No computers connected yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
 
         {/* Right Column: Real DB Active Alerts & Lab Readiness */}
@@ -265,7 +344,7 @@ const Dashboard = () => {
             <div className="space-y-3">
               {Object.keys(labGroups).length > 0 ? (
                 Object.entries(labGroups).map(([labName, comps]) => {
-                  const online = comps.filter(c => c.status === 'ONLINE').length;
+                  const online = comps.filter(c => c.status === 'ONLINE' || c.status === 'WARNING').length;
                   const percent = comps.length > 0 ? Math.round((online / comps.length) * 100) : 0;
                   return (
                     <div 
