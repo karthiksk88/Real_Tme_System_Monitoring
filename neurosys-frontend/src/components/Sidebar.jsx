@@ -6,7 +6,7 @@ import api from '../services/api';
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeAlertCount, setActiveAlertCount] = useState(3);
+  const [activeAlertCount, setActiveAlertCount] = useState(0);
 
   useEffect(() => {
     fetchAlertCount();
@@ -16,7 +16,7 @@ const Sidebar = () => {
 
   const fetchAlertCount = async () => {
     try {
-      const res = await api.get('/alerts/active');
+      const res = await api.get('/alerts');
       const list = res?.data || (Array.isArray(res) ? res : []);
       if (Array.isArray(list)) {
         setActiveAlertCount(list.length);
@@ -33,12 +33,12 @@ const Sidebar = () => {
 
   const navItems = [
     { name: 'Overview', path: '/dashboard', icon: 'dashboard' },
+    { name: 'My Laptop (PALBUQS2)', path: '/admin-laptop', icon: 'laptop_mac', highlight: true },
     { name: 'Computers', path: '/computers', icon: 'desktop_windows' },
     { name: 'Alerts', path: '/alerts', icon: 'warning', badge: activeAlertCount },
     { name: 'Software Inventory', path: '/software', icon: 'inventory_2' },
     { name: 'Lab Readiness', path: '/lab-readiness', icon: 'fact_check' },
     { name: 'AI Intelligence', path: '/analytics', icon: 'psychology' },
-    { name: 'Activity / Audit', path: '/alerts', icon: 'history' },
     { name: 'Settings', path: '/settings', icon: 'settings' },
   ];
 
@@ -46,12 +46,12 @@ const Sidebar = () => {
     <nav className="bg-surface text-primary font-body-md text-body-md w-sidebar-width h-full border-r border-outline-variant fixed left-0 top-0 flex flex-col z-40 hidden md:flex shadow-sm">
       {/* Header Profile / Admin Info */}
       <div className="p-gutter border-b border-outline-variant flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden border border-outline-variant shrink-0">
-          <span className="material-symbols-outlined text-secondary">person</span>
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/30 shrink-0">
+          <span className="material-symbols-outlined text-primary">person</span>
         </div>
         <div className="flex-1 min-w-0">
           <h2 className="font-headline-md text-body-lg font-bold text-on-surface truncate">
-            {user?.name || 'Admin Name'}
+            {user?.username || user?.name || 'Admin'}
           </h2>
           <p className="text-label-md font-label-md text-secondary truncate">Lab Supervisor</p>
         </div>
@@ -67,13 +67,15 @@ const Sidebar = () => {
               `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 ease-in-out group ${
                 isActive
                   ? 'bg-surface-container text-primary font-bold border-r-2 border-primary'
+                  : item.highlight
+                  ? 'text-primary font-bold bg-primary/5 border border-primary/20 hover:bg-primary/10'
                   : 'text-secondary hover:bg-surface-container-high'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <span className={`material-symbols-outlined ${isActive ? 'icon-fill' : ''} group-hover:scale-110 transition-transform`}>
+                <span className={`material-symbols-outlined ${isActive || item.highlight ? 'icon-fill text-primary' : ''} group-hover:scale-110 transition-transform`}>
                   {item.icon}
                 </span>
                 <span className="flex-1 truncate">{item.name}</span>
@@ -92,7 +94,7 @@ const Sidebar = () => {
       <div className="p-3 border-t border-outline-variant space-y-1">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-error hover:bg-error-container transition-colors duration-200 ease-in-out"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-error hover:bg-error-container transition-colors duration-200 ease-in-out cursor-pointer"
         >
           <span className="font-label-md text-label-md font-medium">Logout</span>
           <span className="material-symbols-outlined text-[18px]">logout</span>
