@@ -22,6 +22,13 @@ public class SoftwareController {
 
     private final SoftwareService softwareService;
 
+    @GetMapping({"", "/all"})
+    @Operation(summary = "Get All Software Inventory", description = "Retrieve list of all applications across all monitored computers in the fleet")
+    public ResponseEntity<ApiResponse<List<SoftwareInventory>>> getAllSoftwareInventory() {
+        List<SoftwareInventory> list = softwareService.getAllSoftwareInventory();
+        return ResponseEntity.ok(ApiResponse.success("All software inventory retrieved", list));
+    }
+
     @GetMapping("/computer/{computerId}")
     @Operation(summary = "Get Installed Software for Computer", description = "Retrieve list of all applications scanned on a specific computer endpoint")
     public ResponseEntity<ApiResponse<List<SoftwareInventory>>> getSoftwareForComputer(@PathVariable String computerId) {
@@ -76,5 +83,12 @@ public class SoftwareController {
     public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getSoftwareSummary() {
         java.util.Map<String, Object> summary = softwareService.getSoftwareSummary();
         return ResponseEntity.ok(ApiResponse.success("Software summary retrieved", summary));
+    }
+
+    @GetMapping("/fleet-summary")
+    @Operation(summary = "Get Atomic Software Fleet Summary & Catalog", description = "Retrieve total computers, total records, distinct packages, computer list, and full software catalog in one atomic snapshot")
+    public ResponseEntity<ApiResponse<com.neurosys.backend.dto.response.SoftwareFleetSummaryDto>> getFleetSoftwareSummary() {
+        com.neurosys.backend.dto.response.SoftwareFleetSummaryDto summary = softwareService.getFleetSoftwareSummary();
+        return ResponseEntity.ok(ApiResponse.success("Fleet software inventory summary retrieved", summary));
     }
 }

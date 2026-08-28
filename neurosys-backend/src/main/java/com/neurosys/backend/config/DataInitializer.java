@@ -1,12 +1,11 @@
 package com.neurosys.backend.config;
 
 import com.neurosys.backend.entity.Computer;
-import com.neurosys.backend.entity.SystemMetric;
 import com.neurosys.backend.entity.User;
 import com.neurosys.backend.enums.ComputerStatus;
 import com.neurosys.backend.enums.Role;
 import com.neurosys.backend.repository.ComputerRepository;
-import com.neurosys.backend.repository.SystemMetricRepository;
+import com.neurosys.backend.repository.SoftwareInventoryRepository;
 import com.neurosys.backend.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -16,8 +15,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.List;
 
 @Slf4j
 @Component
@@ -26,7 +23,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final ComputerRepository computerRepository;
-    private final SystemMetricRepository systemMetricRepository;
+    private final SoftwareInventoryRepository softwareInventoryRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -45,113 +42,38 @@ public class DataInitializer implements CommandLineRunner {
             log.info("Default Administrator user created successfully.");
         }
 
-        // 2. Seed Initial Active Computer Endpoints if database is empty
-        if (computerRepository.count() == 0) {
-            log.info("Seeding initial lab computer endpoints into database...");
+        // 2. Clean up old mock sample computers (LAB-ALPHA-01, LAB-ALPHA-02, LAB-BETA-01, LAB-BETA-02)
+        computerRepository.findAll().stream()
+                .filter(c -> c.getHostname().startsWith("LAB-ALPHA") || c.getHostname().startsWith("LAB-BETA"))
+                .forEach(c -> {
+                    log.info("Cleaning up legacy sample computer {} and its inventory...", c.getHostname());
+                    softwareInventoryRepository.deleteByComputerId(c.getId());
+                    computerRepository.delete(c);
+                });
 
-            List<Computer> sampleComputers = Arrays.asList(
-                Computer.builder()
+        // 3. Ensure Primary Admin Computer (LAPTOP-PALBUQS2) exists in DB
+        if (computerRepository.findByHostnameIgnoreCase("LAPTOP-PALBUQS2").isEmpty() && 
+            computerRepository.findByAgentId("AGENT-9EA49A31").isEmpty()) {
+            log.info("Seeding primary admin workstation endpoint (LAPTOP-PALBUQS2)...");
+
+            Computer primary = Computer.builder()
                     .agentId("AGENT-9EA49A31")
                     .hostname("LAPTOP-PALBUQS2")
-                    .computerName("Admin Primary Workstation (Your Laptop)")
+                    .computerName("Admin Workstation (LAPTOP-PALBUQS2)")
                     .ipAddress("10.33.199.161")
                     .macAddress("FA:54:F6:B4:98:23")
                     .osName("Windows 11 Pro 64-bit")
                     .osVersion("10.0.22631")
-                    .labName("Lab Alpha")
+                    .labName("Computer Lab")
                     .cpuModel("11th Gen Intel(R) Core(TM) i5-11260H @ 2.60GHz")
                     .totalRamMb(8192.0)
                     .agentVersion("1.0.0")
                     .status(ComputerStatus.ONLINE)
                     .lastSeenAt(Instant.now())
-                    .build(),
+                    .build();
 
-                Computer.builder()
-                    .agentId("AGENT-ALPHA-01")
-                    .hostname("LAB-ALPHA-01")
-                    .computerName("Student Station A01")
-                    .ipAddress("192.168.1.101")
-                    .macAddress("D8-BB-C1-8E-4A-02")
-                    .osName("Windows 11 Education")
-                    .osVersion("10.0.22631")
-                    .labName("Lab Alpha")
-                    .cpuModel("12th Gen Intel(R) Core(TM) i5-12400 @ 2.50GHz")
-                    .totalRamMb(16384.0)
-                    .agentVersion("1.0.0")
-                    .status(ComputerStatus.ONLINE)
-                    .lastSeenAt(Instant.now())
-                    .build(),
-
-                Computer.builder()
-                    .agentId("AGENT-ALPHA-02")
-                    .hostname("LAB-ALPHA-02")
-                    .computerName("Student Station A02")
-                    .ipAddress("192.168.1.102")
-                    .macAddress("D8-BB-C1-8E-4A-03")
-                    .osName("Windows 11 Education")
-                    .osVersion("10.0.22631")
-                    .labName("Lab Alpha")
-                    .cpuModel("12th Gen Intel(R) Core(TM) i5-12400 @ 2.50GHz")
-                    .totalRamMb(16384.0)
-                    .agentVersion("1.0.0")
-                    .status(ComputerStatus.ONLINE)
-                    .lastSeenAt(Instant.now())
-                    .build(),
-
-                Computer.builder()
-                    .agentId("AGENT-BETA-01")
-                    .hostname("LAB-BETA-01")
-                    .computerName("Research Station B01")
-                    .ipAddress("192.168.1.103")
-                    .macAddress("D8-BB-C1-8E-4A-04")
-                    .osName("Windows 11 Pro 64-bit")
-                    .osVersion("10.0.22631")
-                    .labName("Lab Beta")
-                    .cpuModel("AMD Ryzen 7 5800X 8-Core Processor")
-                    .totalRamMb(32768.0)
-                    .agentVersion("1.0.0")
-                    .status(ComputerStatus.ONLINE)
-                    .lastSeenAt(Instant.now())
-                    .build(),
-
-                Computer.builder()
-                    .agentId("AGENT-BETA-02")
-                    .hostname("LAB-BETA-02")
-                    .computerName("Research Station B02")
-                    .ipAddress("192.168.1.104")
-                    .macAddress("D8-BB-C1-8E-4A-05")
-                    .osName("Windows 11 Pro 64-bit")
-                    .osVersion("10.0.22631")
-                    .labName("Lab Beta")
-                    .cpuModel("AMD Ryzen 7 5800X 8-Core Processor")
-                    .totalRamMb(32768.0)
-                    .agentVersion("1.0.0")
-                    .status(ComputerStatus.ONLINE)
-                    .lastSeenAt(Instant.now())
-                    .build()
-            );
-
-            List<Computer> saved = computerRepository.saveAll(sampleComputers);
-            log.info("Saved {} computer endpoints to database.", saved.size());
-
-            // Seed initial telemetry metrics for saved computers
-            for (Computer c : saved) {
-                SystemMetric metric = SystemMetric.builder()
-                        .computer(c)
-                        .cpuUsagePercent(22.5)
-                        .memoryUsagePercent(58.0)
-                        .memoryUsedMb(4750.0)
-                        .memoryFreeMb(3442.0)
-                        .diskUsagePercent(45.0)
-                        .diskUsedGb(230.0)
-                        .diskFreeGb(280.0)
-                        .cpuTemperature(48.0)
-                        .activeProcessCount(165)
-                        .recordedAt(Instant.now())
-                        .build();
-                systemMetricRepository.save(metric);
-            }
-            log.info("Initial system metrics seeded successfully.");
+            computerRepository.save(primary);
+            log.info("Primary admin workstation LAPTOP-PALBUQS2 seeded successfully.");
         }
     }
 }

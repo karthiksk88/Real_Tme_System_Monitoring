@@ -1,16 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { metricsService } from '../services/metricsService';
 
 const Settings = () => {
   const { user } = useAuth();
   const [fullName, setFullName] = useState(user?.name || 'Admin User');
   const [email, setEmail] = useState(user?.email || 'sysadmin@neurosys.edu');
-  const [pollingInterval, setPollingInterval] = useState('5');
+  const [pollingInterval, setPollingInterval] = useState('3');
   const [cpuThreshold, setCpuThreshold] = useState('80');
   const [ramThreshold, setRamThreshold] = useState('85');
   const [tempThreshold, setTempThreshold] = useState('80');
   const [autoApprove, setAutoApprove] = useState(true);
   const [toastMessage, setToastMessage] = useState('');
+  
+  const [computers, setComputers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchComputers();
+  }, []);
+
+  const fetchComputers = async () => {
+    try {
+      const data = await metricsService.getAllComputers();
+      const list = Array.isArray(data) ? data : (data?.data || []);
+      if (Array.isArray(list)) {
+        setComputers(list);
+      }
+    } catch (e) {
+      console.error('Error fetching computers for settings', e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -27,6 +49,10 @@ const Settings = () => {
     showToast('✓ System configuration saved successfully.');
   };
 
+  const totalComps = computers.length;
+  const activeComps = computers.filter(c => c.status === 'ONLINE' || c.status === 'WARNING').length;
+  const offlineComps = Math.max(0, totalComps - activeComps);
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fade-in-up">
       {/* Page Header */}
@@ -41,10 +67,10 @@ const Settings = () => {
         </div>
       )}
 
-      {/* Settings Grid (Bento Style matching code.html) */}
+      {/* Settings Grid (Bento Style matching Stitch UI) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Account Section */}
-        <section className="lg:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm hover:shadow-md hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 flex flex-col h-full">
+        <section className="lg:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
               <span className="material-symbols-outlined">person</span>
@@ -89,7 +115,7 @@ const Settings = () => {
             <div className="mt-6 pt-4 border-t border-outline-variant flex justify-end">
               <button 
                 type="submit"
-                className="bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md py-2 px-4 rounded-lg transition-all duration-200 transform active:scale-95 shadow-sm hover:shadow cursor-pointer"
+                className="bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md py-2 px-4 rounded-lg transition-all duration-200 transform active:scale-95 shadow-sm hover:shadow cursor-pointer font-bold"
               >
                 Save Profile
               </button>
@@ -98,7 +124,7 @@ const Settings = () => {
         </section>
 
         {/* Security Section */}
-        <section className="lg:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm hover:shadow-md hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 flex flex-col h-full">
+        <section className="lg:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
               <span className="material-symbols-outlined">lock</span>
@@ -111,12 +137,12 @@ const Settings = () => {
               <h3 className="font-label-md text-label-md text-on-surface mb-2">Password</h3>
               <button 
                 onClick={() => showToast('Password change modal opened')}
-                className="w-full bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low font-label-md text-label-md py-2 px-4 rounded-lg transition-all duration-200 transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low font-label-md text-label-md py-2 px-4 rounded-lg transition-all duration-200 transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer font-bold"
               >
                 <span className="material-symbols-outlined text-[18px]">key</span>
                 Change Password
               </button>
-              <p className="font-mono-sm text-mono-sm text-on-surface-variant mt-2 text-center">Last changed 45 days ago</p>
+              <p className="font-mono-sm text-mono-sm text-on-surface-variant mt-2 text-center">Protected via JWT Token Authentication</p>
             </div>
 
             <div className="border-t border-outline-variant pt-5">
@@ -127,38 +153,28 @@ const Settings = () => {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                   </span>
-                  <span className="font-label-md text-label-md">Enabled</span>
+                  <span className="font-label-md text-label-md font-bold">Active Session</span>
                 </div>
               </div>
-              <p className="font-body-md text-body-md text-on-surface-variant mb-4">Requires a verification code from your authenticator app.</p>
-              <button 
-                onClick={() => showToast('2FA settings updated')}
-                className="w-full bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low font-label-md text-label-md py-2 px-4 rounded-lg transition-all duration-200 transform active:scale-95 cursor-pointer"
-              >
-                Manage 2FA Settings
-              </button>
+              <p className="font-body-md text-body-md text-on-surface-variant mb-4">Requires verification code for remote power actions.</p>
             </div>
           </div>
         </section>
 
-        {/* Agent Management (Status) */}
-        <section className="lg:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm hover:shadow-md hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 flex flex-col h-full relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 text-surface-container-high opacity-50 pointer-events-none">
-            <span className="material-symbols-outlined text-9xl">memory</span>
-          </div>
-
+        {/* Agent Management (Real Database Status Counts) */}
+        <section className="lg:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full relative overflow-hidden">
           <div className="flex items-center gap-3 mb-6 relative z-10">
             <div className="w-10 h-10 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
               <span className="material-symbols-outlined">deployed_code</span>
             </div>
-            <h2 className="font-headline-md text-headline-md text-on-surface">Agent Status</h2>
+            <h2 className="font-headline-md text-headline-md text-on-surface">Agent Telemetry Status</h2>
           </div>
 
           <div className="space-y-5 flex-1 relative z-10">
             <div className="bg-surface-container-low rounded-lg p-4 flex items-center justify-between border border-outline-variant">
               <div className="flex flex-col">
-                <span className="font-label-md text-label-md text-on-surface-variant">Global Connection</span>
-                <span className="font-body-md text-body-md text-on-surface font-medium">Optimal</span>
+                <span className="font-label-md text-label-md text-on-surface-variant font-bold">Global Database Connection</span>
+                <span className="font-body-md text-body-md text-primary font-bold">Connected to MySQL</span>
               </div>
               <div className="w-8 h-8 rounded-full bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-primary relative">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-20 animate-ping"></span>
@@ -166,24 +182,25 @@ const Settings = () => {
               </div>
             </div>
 
+            {/* Real DB Dynamic Counters (Matching Overview & Computers Source of Truth) */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-surface-container-lowest border border-outline-variant rounded p-3 text-center shimmer-effect">
-                <span className="font-display text-display text-primary block leading-none mb-1">142</span>
-                <span className="font-label-md text-label-md text-on-surface-variant">Active Agents</span>
+              <div className="bg-surface-container-lowest border border-outline-variant rounded p-3 text-center">
+                <span className="font-display text-display text-primary block leading-none mb-1">{activeComps}</span>
+                <span className="font-label-md text-label-md text-on-surface-variant font-bold">Active Agents</span>
               </div>
-              <div className="bg-surface-container-lowest border border-error-container rounded p-3 text-center shimmer-effect">
-                <span className="font-display text-display text-error block leading-none mb-1">3</span>
-                <span className="font-label-md text-label-md text-on-surface-variant">Offline</span>
+              <div className="bg-surface-container-lowest border border-outline-variant rounded p-3 text-center">
+                <span className="font-display text-display text-error block leading-none mb-1">{offlineComps}</span>
+                <span className="font-label-md text-label-md text-on-surface-variant font-bold">Offline Agents</span>
               </div>
             </div>
 
             <div>
-              <h3 className="font-label-md text-label-md text-on-surface mb-2">Agent Installation</h3>
+              <h3 className="font-label-md text-label-md text-on-surface mb-2 font-bold">Agent Installation Package</h3>
               <a 
                 href="https://realtmesystemmonitoring-production.up.railway.app/downloads/NeuroSys-Agent.jar"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low font-label-md text-label-md py-2 px-4 rounded-lg transition-all duration-200 transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low font-label-md text-label-md py-2 px-4 rounded-lg transition-all duration-200 transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer font-bold"
               >
                 <span className="material-symbols-outlined text-[18px]">download</span>
                 Download Agent Package (.jar)
@@ -222,11 +239,10 @@ const Settings = () => {
             <select
               value={pollingInterval}
               onChange={(e) => setPollingInterval(e.target.value)}
-              className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded px-3 font-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-fixed-dim focus:border-primary"
+              className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded px-3 font-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-fixed-dim focus:border-primary font-bold"
             >
-              <option value="3">3 Seconds (High Frequency)</option>
-              <option value="5">5 Seconds (Standard Recommended)</option>
-              <option value="10">10 Seconds (Low Network Workload)</option>
+              <option value="3">3 Seconds (Standard Telemetry Stream)</option>
+              <option value="5">5 Seconds (Low Bandwidth)</option>
             </select>
           </div>
 
@@ -238,7 +254,7 @@ const Settings = () => {
               type="number"
               value={cpuThreshold}
               onChange={(e) => setCpuThreshold(e.target.value)}
-              className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded px-3 font-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-fixed-dim focus:border-primary"
+              className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded px-3 font-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-fixed-dim focus:border-primary font-bold"
             />
           </div>
 
@@ -250,7 +266,7 @@ const Settings = () => {
               type="number"
               value={ramThreshold}
               onChange={(e) => setRamThreshold(e.target.value)}
-              className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded px-3 font-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-fixed-dim focus:border-primary"
+              className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded px-3 font-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-fixed-dim focus:border-primary font-bold"
             />
           </div>
         </div>
@@ -258,7 +274,7 @@ const Settings = () => {
         <div className="pt-4 border-t border-outline-variant flex items-center justify-between">
           <div>
             <h4 className="font-body-md text-body-md font-bold text-on-surface">Auto-Approve Registered Agents</h4>
-            <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">Automatically onboard new monitoring agents upon setup-agent.bat execution.</p>
+            <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">Automatically onboard new monitoring agents upon execution.</p>
           </div>
           <input 
             type="checkbox" 

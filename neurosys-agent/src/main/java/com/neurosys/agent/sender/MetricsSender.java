@@ -167,9 +167,16 @@ public class MetricsSender {
     }
 
     public void sendSoftwarePayload(String agentId, List<Map<String, String>> softwareList) {
+        sendSoftwarePayload(agentId, null, softwareList);
+    }
+
+    public void sendSoftwarePayload(String agentId, String hostname, List<Map<String, String>> softwareList) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("agentId", agentId);
+            if (hostname != null) {
+                payload.put("hostname", hostname);
+            }
             payload.put("softwareList", softwareList);
 
             String jsonBody = objectMapper.writeValueAsString(payload);

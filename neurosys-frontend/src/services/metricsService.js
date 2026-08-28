@@ -1,27 +1,67 @@
 import api from './api';
 
+const API_BASE = '/api/v1';
+
+/**
+ * Resilient API Fetcher with Axios + Native Fetch fallback
+ * Guarantees data arrays are cleanly unwrapped across all network conditions.
+ */
+export const fetchRealApi = async (endpoint) => {
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  
+  // 1. Try Axios Service
+  try {
+    const res = await api.get(path);
+    if (res && res.data !== undefined) {
+      return res.data;
+    }
+    if (Array.isArray(res)) return res;
+    if (res && typeof res === 'object') return res;
+  } catch (axiosErr) {
+    console.warn(`Axios call to ${path} failed, attempting direct native fetch...`, axiosErr);
+  }
+
+  // 2. Direct Native Fetch Fallback
+  try {
+    const rawRes = await fetch(`${API_BASE}${path}`);
+    if (rawRes.ok) {
+      const rawData = await rawRes.json();
+      if (rawData && rawData.data !== undefined) {
+        return rawData.data;
+      }
+      return rawData;
+    }
+  } catch (fetchErr) {
+    console.error(`Native fetch to ${API_BASE}${path} failed`, fetchErr);
+  }
+
+  return null;
+};
+
 export const metricsService = {
+  fetchRealApi,
+  
   // Computer Management APIs
-  getAllComputers: async () => api.get('/computers'),
-  getPendingComputers: async () => api.get('/computers/pending'),
-  getComputerById: async (id) => api.get(`/computers/${id}`),
-  getComputersByLab: async (labName) => api.get(`/computers/lab/${labName}`),
+  getAllComputers: async () => fetchRealApi('/computers'),
+  getPendingComputers: async () => fetchRealApi('/computers/pending'),
+  getComputerById: async (id) => fetchRealApi(`/computers/${id}`),
+  getComputersByLab: async (labName) => fetchRealApi(`/computers/lab/${labName}`),
   approveComputer: async (id) => api.put(`/computers/${id}/approve`),
   rejectComputer: async (id) => api.put(`/computers/${id}/reject`),
 
   // Telemetry History & Metrics APIs
-  getMetricHistory: async (id, limit = 30) => api.get(`/agent/metrics/history/${id}?limit=${limit}`),
-  getHealthScore: async (id) => api.get(`/health-score/${id}`),
+  getMetricHistory: async (id, limit = 30) => fetchRealApi(`/agent/metrics/history/${id}?limit=${limit}`),
+  getHealthScore: async (id) => fetchRealApi(`/health-score/${id}`),
   getProcesses: async (id, search = '', sortBy = 'cpu', page = 0, size = 10) =>
-    api.get(`/computers/${id}/processes?search=${search}&sortBy=${sortBy}&page=${page}&size=${size}`),
-  getFileAnalysis: async (id) => api.get(`/computers/${id}/file-analyzer/summary`),
+    fetchRealApi(`/computers/${id}/processes?search=${search}&sortBy=${sortBy}&page=${page}&size=${size}`),
+  getFileAnalysis: async (id) => fetchRealApi(`/computers/${id}/file-analyzer/summary`),
   getLogs: async (id, logLevel = '', page = 0, size = 15) =>
-    api.get(`/computers/${id}/logs?logLevel=${logLevel}&page=${page}&size=${size}`),
+    fetchRealApi(`/computers/${id}/logs?logLevel=${logLevel}&page=${page}&size=${size}`),
 
   // Alert Center APIs
-  getAllAlerts: async () => api.get('/alerts'),
-  getActiveAlerts: async () => api.get('/alerts'),
-  getComputerAlerts: async (id) => api.get(`/alerts/computer/${id}`),
+  getAllAlerts: async () => fetchRealApi('/alerts'),
+  getActiveAlerts: async () => fetchRealApi('/alerts'),
+  getComputerAlerts: async (id) => fetchRealApi(`/alerts/computer/${id}`),
   acknowledgeAlert: async (id) => api.put(`/alerts/${id}/acknowledge`),
   resolveAlert: async (id) => api.put(`/alerts/${id}/resolve`),
 
@@ -33,12 +73,12 @@ export const metricsService = {
     const endpoint = (commandType || 'SHUTDOWN').toLowerCase();
     return api.post(`/computers/${computerId}/${endpoint}`, {});
   },
-  getPowerAudits: async (computerId) => api.get(`/computers/${computerId}/power-audits`),
+  getPowerAudits: async (computerId) => fetchRealApi(`/computers/${computerId}/power-audits`),
 
   // AI Performance, Prediction & Diagnosis APIs
-  getCrashPrediction: async (id) => api.get(`/predictions/crash/${id}`),
+  getCrashPrediction: async (id) => fetchRealApi(`/predictions/crash/${id}`),
   evaluateCrashRisk: async (id) => api.post(`/predictions/crash/${id}/evaluate`, {}),
-  getAIDiagnosis: async (computerId) => api.get(`/diagnostics/${computerId}`),
-  getAnalyticsSummary: async () => api.get('/analytics/summary'),
+  getAIDiagnosis: async (computerId) => fetchRealApi(`/diagnostics/${computerId}`),
+  getAnalyticsSummary: async () => fetchRealApi('/analytics/summary'),
   askAiAssistant: async (message, computerId) => api.post('/ai-assistant/chat', { message, computerId }),
 };

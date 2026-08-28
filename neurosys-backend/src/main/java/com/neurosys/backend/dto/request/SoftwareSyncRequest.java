@@ -17,5 +17,7 @@ public class SoftwareSyncRequest {
     @NotBlank(message = "Agent ID is required")
     private String agentId;
 
+    private String hostname;
+
     private List<SoftwareItemDto> softwareList;
 }

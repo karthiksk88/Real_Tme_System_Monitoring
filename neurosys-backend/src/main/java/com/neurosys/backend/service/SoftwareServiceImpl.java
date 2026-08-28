@@ -84,9 +84,26 @@ public class SoftwareServiceImpl implements SoftwareService {
     @Override
     @Transactional
     public void syncSoftwareInventory(SoftwareSyncRequest request) {
+        // Robust Computer Lookup: Agent ID -> Hostname -> Auto-create
         Computer computer = computerRepository.findByAgentId(request.getAgentId())
-                .or(() -> computerRepository.findAll().stream().findFirst())
-                .orElseThrow(() -> new ResourceNotFoundException("Computer Agent", "agentId", request.getAgentId()));
+                .or(() -> request.getHostname() != null && !request.getHostname().trim().isEmpty() 
+                        ? computerRepository.findByHostnameIgnoreCase(request.getHostname().trim()) 
+                        : Optional.empty())
+                .orElseGet(() -> {
+                    log.info("Auto-registering computer endpoint for software sync [AgentID: {}, Hostname: {}]", 
+                            request.getAgentId(), request.getHostname());
+                    String host = request.getHostname() != null ? request.getHostname().trim() : "WORKSTATION-" + request.getAgentId();
+                    Computer newComp = Computer.builder()
+                            .agentId(request.getAgentId())
+                            .hostname(host)
+                            .computerName(host)
+                            .status(ComputerStatus.ONLINE)
+                            .lastSeenAt(Instant.now())
+                            .labName("Computer Lab")
+                            .osName("Windows OS")
+                            .build();
+                    return computerRepository.save(newComp);
+                });
 
         if (computer.getStatus() == ComputerStatus.REJECTED) {
             log.warn("Ignoring software sync for rejected computer {}", computer.getHostname());
@@ -95,12 +112,14 @@ public class SoftwareServiceImpl implements SoftwareService {
 
         if (computer.getStatus() == ComputerStatus.PENDING) {
             computer.setStatus(ComputerStatus.ONLINE);
-            computerRepository.save(computer);
         }
+        computer.setLastSeenAt(Instant.now());
+        computerRepository.save(computer);
 
         log.info("Syncing {} software records for computer {}", 
                 request.getSoftwareList() != null ? request.getSoftwareList().size() : 0, computer.getHostname());
 
+        // Wipe previous inventory records ONLY for this specific computer
         List<SoftwareInventory> existing = softwareInventoryRepository.findByComputerId(computer.getId());
         if (existing != null && !existing.isEmpty()) {
             softwareInventoryRepository.deleteAll(existing);
@@ -137,17 +156,23 @@ public class SoftwareServiceImpl implements SoftwareService {
                     .collect(Collectors.toList());
 
             softwareInventoryRepository.saveAll(entities);
+            log.info("Saved {} new software inventory items for computer {}", entities.size(), computer.getHostname());
         }
     }
 
     private String sanitizeString(String input, int maxLength) {
         if (input == null) return "";
-        // Replace corrupted control characters and unprintable non-ASCII bytes safely
         String cleaned = input.replaceAll("[^\\x20-\\x7E]", "").trim();
         if (cleaned.length() > maxLength) {
             cleaned = cleaned.substring(0, maxLength);
         }
         return cleaned;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SoftwareInventory> getAllSoftwareInventory() {
+        return softwareInventoryRepository.findAll();
     }
 
     @Override
@@ -162,10 +187,8 @@ public class SoftwareServiceImpl implements SoftwareService {
         String rawQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : "Python";
         String normalizedQuery = rawQuery.toLowerCase();
 
-        // 1. Check direct alias lookup first
         String matchedSoftware = ALIAS_MAP.get(normalizedQuery);
 
-        // 2. Fetch distinct installed software names from database for fuzzy matching
         List<String> distinctNames = softwareInventoryRepository.findDistinctSoftwareNames();
         List<String> suggestions = new ArrayList<>();
 
@@ -192,7 +215,6 @@ public class SoftwareServiceImpl implements SoftwareService {
         }
 
         final String targetMatchedSoftware = matchedSoftware;
-        // Limit suggestions to top 3 distinct names
         suggestions = suggestions.stream()
                 .map(this::normalizeName)
                 .filter(s -> !s.equalsIgnoreCase(targetMatchedSoftware))
@@ -200,7 +222,6 @@ public class SoftwareServiceImpl implements SoftwareService {
                 .limit(3)
                 .toList();
 
-        // 3. Evaluate matching computers across all non-rejected computers
         List<Computer> approvedComputers = computerRepository.findAll().stream()
                 .filter(c -> c.getStatus() != ComputerStatus.REJECTED)
                 .sorted(Comparator.comparing(Computer::getHostname))
@@ -263,7 +284,6 @@ public class SoftwareServiceImpl implements SoftwareService {
                 .notInstalledCount(approvedComputers.size() - installedCount)
                 .suggestions(suggestions)
                 .computers(computerResults)
-                // Backward compatibility
                 .softwareName(matchedSoftware)
                 .totalInstalled(installedCount)
                 .totalMissing(approvedComputers.size() - installedCount)
@@ -339,19 +359,14 @@ public class SoftwareServiceImpl implements SoftwareService {
     @Override
     @Transactional(readOnly = true)
     public LabReadinessDto getLabReadiness(String labName) {
-        String targetLab = (labName != null && !labName.trim().isEmpty()) ? labName.trim() : "General Lab";
+        String targetLab = "Computer Lab";
         List<Computer> labComputers = computerRepository.findAll().stream()
                 .filter(c -> c.getStatus() != ComputerStatus.PENDING && c.getStatus() != ComputerStatus.REJECTED)
-                .filter(c -> labName == null || labName.equalsIgnoreCase("ALL") || targetLab.equalsIgnoreCase(c.getLabName()))
                 .toList();
 
         List<RequiredSoftware> reqSoftware = requiredSoftwareRepository.findByLabName(targetLab);
         if (reqSoftware.isEmpty()) {
-            reqSoftware = List.of(
-                    RequiredSoftware.builder().labName(targetLab).softwareName("Java").requiredVersion("21").build(),
-                    RequiredSoftware.builder().labName(targetLab).softwareName("MySQL").requiredVersion("8").build(),
-                    RequiredSoftware.builder().labName(targetLab).softwareName("VS Code").requiredVersion("1").build()
-            );
+            reqSoftware = requiredSoftwareRepository.findAll();
         }
 
         List<String> reqNames = reqSoftware.stream().map(RequiredSoftware::getSoftwareName).toList();
@@ -360,26 +375,43 @@ public class SoftwareServiceImpl implements SoftwareService {
         int readyCount = 0;
         for (Computer c : labComputers) {
             List<SoftwareInventory> installed = softwareInventoryRepository.findByComputerId(c.getId());
+            boolean hasScannedInventory = !installed.isEmpty();
+
             List<String> missing = new ArrayList<>();
             List<String> outdated = new ArrayList<>();
             List<String> issues = new ArrayList<>();
 
             for (RequiredSoftware req : reqSoftware) {
+                String reqName = req.getSoftwareName();
+                String reqVersion = req.getRequiredVersion();
+
+                if (!hasScannedInventory) {
+                    issues.add("Software inventory unavailable");
+                    break;
+                }
+
                 Optional<SoftwareInventory> match = installed.stream()
-                        .filter(s -> s.getName().toLowerCase().contains(req.getSoftwareName().toLowerCase()))
+                        .filter(s -> isSoftwareMatch(s.getName(), reqName, reqName))
                         .findFirst();
 
                 if (match.isEmpty()) {
-                    missing.add(req.getSoftwareName());
-                    issues.add(req.getSoftwareName() + " missing");
+                    missing.add(reqName);
+                    issues.add(reqName + " is not installed");
+                } else if (reqVersion != null && !reqVersion.trim().isEmpty() && !reqVersion.equalsIgnoreCase("optional")) {
+                    String detectedVer = match.get().getVersion();
+                    if (detectedVer != null && !detectedVer.startsWith(reqVersion.trim())) {
+                        outdated.add(reqName);
+                        issues.add(reqName + " version " + detectedVer + " is installed, but version " + reqVersion + " is required");
+                    }
                 }
             }
 
             if (c.getStatus() == ComputerStatus.OFFLINE) {
-                issues.add("Computer is OFFLINE");
+                issues.add("Computer is offline");
             }
 
-            boolean isReady = missing.isEmpty() && c.getStatus() != ComputerStatus.OFFLINE;
+            boolean isReady = missing.isEmpty() && outdated.isEmpty() && c.getStatus() != ComputerStatus.OFFLINE;
+
             if (isReady) readyCount++;
 
             compStatusList.add(LabReadinessDto.LabComputerStatusDto.builder()
@@ -394,7 +426,7 @@ public class SoftwareServiceImpl implements SoftwareService {
         }
 
         int total = labComputers.size();
-        double percent = total > 0 ? (double) readyCount / total * 100.0 : 100.0;
+        double percent = total > 0 ? (double) readyCount / total * 100.0 : 0.0;
 
         return LabReadinessDto.builder()
                 .labName(targetLab)
@@ -442,5 +474,27 @@ public class SoftwareServiceImpl implements SoftwareService {
         summary.put("totalScannedRecords", totalRecords);
         summary.put("lastScannedAt", lastScanned != null ? lastScanned.toString() : null);
         return summary;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.neurosys.backend.dto.response.SoftwareFleetSummaryDto getFleetSoftwareSummary() {
+        List<Computer> approvedComputers = computerRepository.findAll().stream()
+                .filter(c -> c.getStatus() != ComputerStatus.REJECTED)
+                .sorted(Comparator.comparing(Computer::getHostname))
+                .toList();
+
+        List<SoftwareInventory> allSoftware = softwareInventoryRepository.findAll();
+        List<String> distinctNames = softwareInventoryRepository.findDistinctSoftwareNames();
+        Instant lastScanned = softwareInventoryRepository.findLatestScanTime().orElse(null);
+
+        return com.neurosys.backend.dto.response.SoftwareFleetSummaryDto.builder()
+                .totalComputers(approvedComputers.size())
+                .totalScannedRecords(allSoftware.size())
+                .totalDistinctSoftware(distinctNames.size())
+                .lastScannedAt(lastScanned != null ? lastScanned.toString() : Instant.now().toString())
+                .computers(approvedComputers)
+                .softwareList(allSoftware)
+                .build();
     }
 }

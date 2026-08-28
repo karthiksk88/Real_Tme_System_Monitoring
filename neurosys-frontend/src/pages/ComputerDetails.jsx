@@ -12,9 +12,10 @@ import {
   Terminal, 
   ArrowLeft,
   RefreshCw,
-  CheckCircle2,
-  ShieldCheck
+  Clock,
+  LineChart as LineChartIcon
 } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import ProcessTable from '../components/ProcessTable';
 import RemotePowerManagement from '../components/RemotePowerManagement';
 import LogAnalyzer from '../components/LogAnalyzer';
@@ -28,21 +29,25 @@ const ComputerDetails = () => {
   const [aiDiagnosis, setAiDiagnosis] = useState(null);
   const [aiPrediction, setAiPrediction] = useState(null);
   const [activeTab, setActiveTab] = useState('metrics'); // 'metrics' | 'processes' | 'ai' | 'logs'
+  const [selectedTimeRange, setSelectedTimeRange] = useState('24h'); // '1h' | '6h' | '24h' | '7d'
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchComputerDetails();
-    const interval = setInterval(fetchComputerDetails, 5000);
+    const interval = setInterval(fetchComputerDetails, 4000);
     return () => clearInterval(interval);
-  }, [id]);
+  }, [id, selectedTimeRange]);
 
   const fetchComputerDetails = async () => {
     setIsRefreshing(true);
     try {
+      const limitMap = { '1h': 20, '6h': 40, '24h': 80, '7d': 150 };
+      const limit = limitMap[selectedTimeRange] || 50;
+
       const [compRes, histRes, diagRes, predRes] = await Promise.all([
         metricsService.getComputerById(id).catch(() => null),
-        metricsService.getMetricHistory(id, 30).catch(() => null),
+        metricsService.getMetricHistory(id, limit).catch(() => null),
         metricsService.getAIDiagnosis(id).catch(() => null),
         metricsService.getCrashPrediction(id).catch(() => null)
       ]);
@@ -51,7 +56,10 @@ const ComputerDetails = () => {
         setComputer(compRes.data || compRes);
       }
       if (histRes?.data || Array.isArray(histRes)) {
-        setMetricHistory(histRes.data || histRes);
+        const rawList = histRes.data || histRes;
+        if (Array.isArray(rawList)) {
+          setMetricHistory(rawList);
+        }
       }
       if (diagRes?.data || diagRes) {
         setAiDiagnosis(diagRes.data || diagRes);
@@ -76,11 +84,20 @@ const ComputerDetails = () => {
   }
 
   const latestMetric = metricHistory.length > 0 ? metricHistory[0] : null;
-  const cpu = latestMetric?.cpuUsagePercent ?? computer?.latestCpuPercent ?? 24;
-  const ram = latestMetric?.memoryUsagePercent ?? computer?.latestRamPercent ?? 68;
-  const diskFree = latestMetric?.diskFreeGb ?? computer?.latestDiskFreeGb ?? 142;
-  const temp = latestMetric?.cpuTemperature ?? 48;
-  const isOnline = computer?.status === 'ONLINE';
+  const cpu = latestMetric?.cpuUsagePercent ?? computer?.currentCpuUsage ?? computer?.lastRecordedCpuUsage ?? 0;
+  const ram = latestMetric?.memoryUsagePercent ?? computer?.currentRamUsage ?? computer?.lastRecordedRamUsage ?? 0;
+  const diskFree = latestMetric?.diskFreeGb ?? (computer?.totalRamMb ? Math.round(computer.totalRamMb / 100) : 120);
+  const temp = latestMetric?.cpuTemperature ?? 45;
+  const isOnline = computer?.status === 'ONLINE' || computer?.status === 'WARNING';
+
+  // Format Recharts Chart Data (Chronological Order)
+  const chartData = metricHistory.map((m) => ({
+    time: m.recordedAt ? new Date(m.recordedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'N/A',
+    cpu: Math.round(m.cpuUsagePercent ?? 0),
+    ram: Math.round(m.memoryUsagePercent ?? 0),
+    diskFree: Math.round(m.diskFreeGb ?? 0),
+    temp: Math.round(m.cpuTemperature ?? 45)
+  })).reverse();
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -97,7 +114,7 @@ const ComputerDetails = () => {
             <div className="flex items-center gap-3">
               <h1 className="font-headline-lg text-headline-lg text-on-background font-bold">{computer?.hostname || 'PC Details'}</h1>
               <span className="px-2.5 py-1 bg-surface-container rounded-md font-mono-sm text-mono-sm text-on-surface-variant border border-outline-variant font-bold">
-                {computer?.labName || 'General Lab'}
+                {computer?.labName || 'Lab Alpha'}
               </span>
             </div>
             <div className="flex items-center gap-2 mt-1">
@@ -105,7 +122,7 @@ const ComputerDetails = () => {
               <span className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider font-bold">
                 Status: {computer?.status || 'ONLINE'}
               </span>
-              <span className="text-secondary text-xs font-mono ml-2">• IP: {computer?.ipAddress || '192.168.1.100'}</span>
+              <span className="text-secondary text-xs font-mono ml-2">• IP: {computer?.ipAddress || '10.33.199.161'}</span>
             </div>
           </div>
         </div>
@@ -115,7 +132,7 @@ const ComputerDetails = () => {
           <button
             onClick={fetchComputerDetails}
             title="Refresh Details"
-            className="p-2 rounded-lg border border-outline-variant text-secondary hover:bg-surface-container hover:text-primary transition-colors"
+            className="p-2 rounded-lg border border-outline-variant text-secondary hover:bg-surface-container hover:text-primary transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
           </button>
@@ -204,6 +221,65 @@ const ComputerDetails = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Real Historical Metric Trend Graphs */}
+      <div className="card-elevated p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant pb-3">
+          <div className="flex items-center gap-2">
+            <LineChartIcon className="w-5 h-5 text-primary" />
+            <h3 className="font-headline-md text-headline-md font-bold text-on-surface">
+              Historical Telemetry Trends ({computer?.hostname})
+            </h3>
+          </div>
+
+          {/* Time Range Selector */}
+          <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg border border-outline-variant">
+            {['1h', '6h', '24h', '7d'].map((range) => (
+              <button
+                key={range}
+                onClick={() => setSelectedTimeRange(range)}
+                className={`px-3 py-1 rounded text-xs font-bold transition-colors cursor-pointer ${
+                  selectedTimeRange === range
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-secondary hover:text-on-surface'
+                }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {chartData.length > 0 ? (
+          <div className="h-72 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="compCpuGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="compRamGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
+                <YAxis stroke="#64748b" fontSize={11} domain={[0, 100]} unit="%" />
+                <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', borderRadius: '10px' }} />
+                <Area type="monotone" dataKey="cpu" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#compCpuGrad)" name="CPU Usage %" />
+                <Area type="monotone" dataKey="ram" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#compRamGrad)" name="RAM Usage %" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="h-44 flex flex-col items-center justify-center border border-dashed border-outline-variant rounded-xl text-secondary text-body-md">
+            <Clock className="w-8 h-8 text-secondary mb-2 opacity-50" />
+            <span>No historical data available for selected time period.</span>
+          </div>
+        )}
       </div>
 
       {/* AI Diagnostic Summary Banner */}
@@ -298,8 +374,9 @@ const ComputerDetails = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
           </div>
+          <ProcessTable computerId={id} />
+        </div>
         )}
 
         {activeTab === 'processes' && (

@@ -139,11 +139,11 @@ public class MetricsScheduler {
                 });
             }
 
-            // Sync software inventory on initial cycle (#1) or every 300 cycles (5 minutes)
-            if (cycleCounter == 1 || cycleCounter % 300 == 0) {
+            // Sync software inventory on initial cycle (#1) or every 30 cycles (30 seconds)
+            if (cycleCounter == 1 || cycleCounter % 30 == 0) {
                 Executors.newSingleThreadExecutor().submit(() -> {
                     var softwareList = softwareCollector.collectInstalledSoftware();
-                    metricsSender.sendSoftwarePayload(AgentConfig.getAgentId(), softwareList);
+                    metricsSender.sendSoftwarePayload(AgentConfig.getAgentId(), systemInfoCollector.getHostname(), softwareList);
                 });
             }
         } catch (Exception e) {

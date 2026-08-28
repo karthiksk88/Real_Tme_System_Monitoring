@@ -10,9 +10,11 @@ import {
   Filter, 
   ShieldAlert, 
   Clock, 
-  ChevronRight,
   Search,
-  Check
+  Check,
+  Monitor,
+  Activity,
+  FileText
 } from 'lucide-react';
 
 const Alerts = () => {
@@ -24,7 +26,7 @@ const Alerts = () => {
 
   useEffect(() => {
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 5000);
+    const interval = setInterval(fetchAlerts, 4000);
     return () => clearInterval(interval);
   }, []);
 
@@ -55,9 +57,12 @@ const Alerts = () => {
   };
 
   const filteredAlerts = alerts.filter((alert) => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch = 
-      (alert.message || alert.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (alert.computerHostname || '').toLowerCase().includes(searchQuery.toLowerCase());
+      !q ||
+      (alert.message || '').toLowerCase().includes(q) ||
+      (alert.title || '').toLowerCase().includes(q) ||
+      (alert.hostname || alert.computerHostname || '').toLowerCase().includes(q);
 
     const isResolved = alert.resolved || alert.status === 'RESOLVED';
     const matchesFilter = 
@@ -69,58 +74,84 @@ const Alerts = () => {
   });
 
   const activeAlertsCount = alerts.filter(a => !a.resolved && a.status !== 'RESOLVED').length;
+  const resolvedAlertsCount = alerts.filter(a => a.resolved || a.status === 'RESOLVED').length;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-lowest border border-outline-variant p-6 rounded-xl shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-lowest border border-slate-200 p-6 rounded-xl shadow-sm">
         <div>
           <div className="flex items-center gap-3">
-            <Bell className="w-7 h-7 text-primary" />
-            <h1 className="font-display text-display text-on-background tracking-tight">System Alerts & Audit Log</h1>
+            <Bell className="w-8 h-8 text-primary" />
+            <h1 className="font-display text-display text-slate-900 tracking-tight font-extrabold">Computer Lab Alerts &amp; Degradation Log</h1>
           </div>
-          <p className="font-body-md text-body-md text-secondary mt-1">
-            Real-time telemetry incident detection, persistent hardware alerts, and audit history across computer labs.
+          <p className="font-body-md text-body-md text-slate-700 mt-1 font-medium">
+            Persistent degradation incident detection, baseline anomaly tracking, and audit history across computer lab workstations.
           </p>
         </div>
 
         <button
           onClick={fetchAlerts}
-          className="p-2.5 rounded-lg border border-outline-variant text-secondary hover:bg-surface-container hover:text-primary transition-colors flex items-center gap-2 text-xs font-bold shadow-sm"
+          className="px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-800 hover:bg-slate-100 hover:text-primary transition-colors flex items-center gap-2 text-xs font-bold shadow-sm cursor-pointer"
         >
           <RefreshCw className="w-4 h-4" />
-          <span>Refresh Feed</span>
+          <span>Refresh Alert Feed</span>
         </button>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="card-elevated p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Search */}
+      {/* Summary Tiles */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card-elevated p-4 border border-slate-200 flex items-center justify-between">
+          <div>
+            <span className="text-label-md font-label-md text-slate-700 font-bold">Total Logged Incidents</span>
+            <div className="text-display font-display text-slate-900 font-extrabold">{alerts.length}</div>
+          </div>
+          <Activity className="w-8 h-8 text-primary opacity-80" />
+        </div>
+
+        <div className="card-elevated p-4 border-l-4 border-l-amber-500 border-y border-r border-slate-200 flex items-center justify-between">
+          <div>
+            <span className="text-label-md font-label-md text-amber-700 font-bold">Active Incidents</span>
+            <div className="text-display font-display text-amber-700 font-extrabold">{activeAlertsCount}</div>
+          </div>
+          <AlertTriangle className="w-8 h-8 text-amber-600 opacity-80" />
+        </div>
+
+        <div className="card-elevated p-4 border-l-4 border-l-emerald-500 border-y border-r border-slate-200 flex items-center justify-between">
+          <div>
+            <span className="text-label-md font-label-md text-emerald-700 font-bold">Resolved Incidents</span>
+            <div className="text-display font-display text-emerald-700 font-extrabold">{resolvedAlertsCount}</div>
+          </div>
+          <CheckCircle2 className="w-8 h-8 text-emerald-600 opacity-80" />
+        </div>
+      </div>
+
+      {/* Search & Filter Tabs Toolbar */}
+      <div className="card-elevated p-4 flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-200">
         <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search alert message, PC..."
-            className="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-medium text-on-surface focus:outline-none focus:border-primary transition-all"
+            placeholder="Search incident explanation, PC..."
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-primary"
           />
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg border border-outline-variant">
+        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
           {[
             { id: 'ALL', label: `All Alerts (${alerts.length})` },
             { id: 'ACTIVE', label: `Active Incidents (${activeAlertsCount})` },
-            { id: 'RESOLVED', label: 'Resolved History' },
+            { id: 'RESOLVED', label: `Resolved (${resolvedAlertsCount})` },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setSelectedFilter(tab.id)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                 selectedFilter === tab.id
                   ? 'bg-primary text-white shadow-sm'
-                  : 'text-secondary hover:text-on-surface'
+                  : 'text-slate-700 hover:text-slate-900'
               }`}
             >
               {tab.label}
@@ -129,62 +160,64 @@ const Alerts = () => {
         </div>
       </div>
 
-      {/* Alerts Feed */}
+      {/* Alerts Incident Feed */}
       <div className="space-y-4">
         {filteredAlerts.length > 0 ? (
           filteredAlerts.map((alert) => {
-            const isResolved = alert.resolved || alert.status === 'RESOLVED';
-            const isCritical = alert.severity === 'CRITICAL' || alert.type?.includes('CRITICAL');
+            const isResolved = alert.status === 'RESOLVED' || alert.resolved;
+            const isCritical = alert.severity === 'CRITICAL';
+            const evidenceList = Array.isArray(alert.evidence) ? alert.evidence : [];
 
             return (
               <div
                 key={alert.id}
-                className={`card-elevated p-5 transition-all ${
+                className={`card-elevated p-6 space-y-4 border transition-all ${
                   isResolved 
-                    ? 'opacity-75 bg-surface-container-low/50' 
+                    ? 'opacity-80 bg-slate-50/80 border-slate-200' 
                     : isCritical 
-                    ? 'border-l-4 border-l-error bg-error-container/10' 
-                    : 'border-l-4 border-l-[#f59e0b]'
+                    ? 'border-l-4 border-l-red-600 bg-red-50/20 border-y border-r border-slate-200' 
+                    : 'border-l-4 border-l-amber-500 bg-amber-50/20 border-y border-r border-slate-200'
                 }`}
               >
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 mt-0.5 ${
-                      isResolved ? 'bg-emerald-100 text-emerald-700' : isCritical ? 'bg-error-container text-error' : 'bg-amber-100 text-amber-700'
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-200 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold shrink-0 ${
+                      isResolved ? 'bg-emerald-100 text-emerald-700' : isCritical ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
                     }`}>
                       {isResolved ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
                     </div>
 
                     <div>
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className={`font-label-md text-label-md px-2 py-0.5 rounded font-bold ${
-                          isResolved ? 'bg-emerald-500 text-white' : isCritical ? 'bg-error text-on-error' : 'bg-[#f59e0b] text-white'
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        <span className={`font-label-md text-label-md px-2.5 py-0.5 rounded-full font-bold uppercase ${
+                          isResolved 
+                            ? 'bg-emerald-500 text-white' 
+                            : isCritical 
+                            ? 'bg-red-600 text-white' 
+                            : 'bg-amber-500 text-white'
                         }`}>
-                          {isResolved ? 'RESOLVED' : alert.severity || 'ACTIVE ALERT'}
+                          {isResolved ? '🟢 RESOLVED' : isCritical ? '🔴 URGENT' : '🟠 NEEDS ATTENTION'}
                         </span>
-                        <span className="font-mono-sm text-mono-sm font-bold text-on-surface bg-surface-container px-2 py-0.5 rounded border border-outline-variant">
-                          {alert.computerHostname || 'Computer Asset'}
+
+                        <span className="font-mono-sm text-mono-sm font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-300">
+                          {alert.hostname || alert.computerHostname || 'Workstation'}
                         </span>
+
                         {alert.occurrenceCount > 1 && (
-                          <span className="font-label-md text-label-md bg-surface-container-high text-primary px-2 py-0.5 rounded font-bold">
+                          <span className="font-label-md text-label-md bg-primary-container/20 text-primary px-2 py-0.5 rounded font-bold">
                             Detected {alert.occurrenceCount}x
                           </span>
                         )}
-                        <span className="font-mono-sm text-mono-sm text-secondary flex items-center gap-1">
+
+                        <span className="font-mono-sm text-mono-sm text-slate-600 flex items-center gap-1 font-semibold">
                           <Clock className="w-3.5 h-3.5" />
-                          {alert.createdAt ? new Date(alert.createdAt).toLocaleString() : 'Recently'}
+                          {alert.triggeredAt || alert.firstDetectedAt ? new Date(alert.triggeredAt || alert.firstDetectedAt).toLocaleString() : 'Recently'}
                         </span>
                       </div>
 
-                      <h3 className="font-headline-md text-headline-md font-bold text-on-surface">
-                        {alert.message || alert.title || 'Telemetry Threshold Exceeded'}
+                      <h3 className="text-headline-md font-bold text-slate-900">
+                        {alert.title || alert.message || 'System Performance Degradation'}
                       </h3>
-
-                      {alert.recommendedAction && (
-                        <p className="font-body-md text-body-md text-secondary mt-1.5">
-                          <strong className="text-on-surface font-semibold">Remediation Action:</strong> {alert.recommendedAction}
-                        </p>
-                      )}
                     </div>
                   </div>
 
@@ -192,21 +225,51 @@ const Alerts = () => {
                     <button
                       onClick={() => handleResolveAlert(alert.id)}
                       disabled={resolvingId === alert.id}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-2 shadow-sm transition-transform active:scale-95 flex-shrink-0"
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-2 shadow-sm cursor-pointer shrink-0 transition-transform active:scale-95"
                     >
                       <Check className="w-4 h-4" />
                       <span>{resolvingId === alert.id ? 'Resolving...' : 'Acknowledge & Resolve'}</span>
                     </button>
                   )}
                 </div>
+
+                {/* Explanation Message */}
+                <div className="text-body-md text-slate-800 font-medium leading-relaxed">
+                  {alert.message}
+                </div>
+
+                {/* Evidence Section */}
+                {evidenceList.length > 0 && (
+                  <div className="p-3.5 bg-white border border-slate-200 rounded-lg space-y-1.5 text-xs text-slate-800 font-medium">
+                    <strong className="text-slate-900 font-extrabold block">Collected Telemetry Evidence:</strong>
+                    <ul className="space-y-1 pl-1">
+                      {evidenceList.map((ev, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-primary font-bold">•</span>
+                          <span>{ev}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Recommended Action */}
+                {alert.recommendedAction && (
+                  <div className="p-3 bg-primary-container/10 border border-primary/20 rounded-lg text-xs font-semibold text-slate-900 flex items-start gap-2">
+                    <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-primary font-bold">Recommended Administrator Action:</strong> {alert.recommendedAction}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })
         ) : (
-          <div className="card-elevated p-12 text-center text-secondary">
-            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3 opacity-80" />
-            <h3 className="font-headline-md text-headline-md font-bold text-on-surface">All Clear — No Incidents Found</h3>
-            <p className="font-body-md text-body-md text-secondary mt-1">There are no active or matching system alerts at this time.</p>
+          <div className="card-elevated p-12 text-center text-slate-700 border border-slate-200">
+            <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-3 opacity-80" />
+            <h3 className="font-headline-md text-headline-md font-bold text-slate-900">All Clear — No Degradation Incidents Found</h3>
+            <p className="font-body-md text-body-md text-slate-700 mt-1 font-semibold">There are no active or matching system degradation alerts at this time.</p>
           </div>
         )}
       </div>

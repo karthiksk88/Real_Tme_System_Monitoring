@@ -1,6 +1,7 @@
 package com.neurosys.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -39,6 +40,18 @@ public class SoftwareInventory extends BaseEntity {
     @Column(name = "last_scanned_at")
     @Builder.Default
     private Instant lastScannedAt = Instant.now();
+
+    @Transient
+    @JsonProperty("computerId")
+    public String getComputerId() {
+        return computer != null ? computer.getId() : null;
+    }
+
+    @Transient
+    @JsonProperty("computerHostname")
+    public String getComputerHostname() {
+        return computer != null ? computer.getHostname() : null;
+    }
 
     @PrePersist
     protected void onCreate() {

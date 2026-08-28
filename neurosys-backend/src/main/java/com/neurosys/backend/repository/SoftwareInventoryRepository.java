@@ -13,7 +13,8 @@ import java.util.List;
 @Repository
 public interface SoftwareInventoryRepository extends JpaRepository<SoftwareInventory, String> {
 
-    List<SoftwareInventory> findByComputerId(String computerId);
+    @Query("SELECT s FROM SoftwareInventory s WHERE s.computer.id = :computerId")
+    List<SoftwareInventory> findByComputerId(@Param("computerId") String computerId);
 
     @Modifying
     @Transactional
